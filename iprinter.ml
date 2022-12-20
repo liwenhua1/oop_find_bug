@@ -156,6 +156,8 @@ let string_of_b_formula = function
 	| _ -> "bag constraint"
 ;;
 
+
+
 (* pretty printing for a pure formula *)
 let rec string_of_pure_formula = function 
   | P.BForm bf                    -> string_of_b_formula bf 
@@ -248,7 +250,11 @@ let rec string_of_formula = function
               else "(" ^ (string_of_h_formula hf) ^ ")*(" ^ (string_of_pure_formula pf) ^ ")"))
 	  ^ ")"
 ;;
-
+let string_of_spec (spec: Iast.specs) : string =
+  match spec with
+  | Ok b -> "ok: " ^ (string_of_formula b) 
+  | Err b ->  "err: " ^ (string_of_formula b) 
+  ;;
 (* pretty printing for a list of formulae (f * f) list *)
 let rec string_of_form_list (l:(Iast.specs * Iast.specs) list) = match l with 
  | []               -> ""

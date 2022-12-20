@@ -61,20 +61,116 @@ let kind_of_Exp exp : string =
   | While _ -> "While"
 
 
-let rec oop_verification_method_aux env decl expr current : (specs * specs) list = 
-	match expr with
-	| _ -> print_string (kind_of_Exp expr); current 
+let lookup_Field_In_Object obj (field:ident) : int = 
+  let ctx = obj.data_fields in 
+  let rec helper li (acc:int) = 
+    match li with 
+    | [] -> raise (Foo (field ^ " does not exits in " ^ obj.data_name ))
+    | ((_, x), _) :: xs -> if String.compare x field == 0 then acc else helper xs (acc +1 )
+  in helper ctx (0)
+;;
 
+let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp = 
+  match spec with 
+  | Iast.F.Base {formula_base_heap; _ } -> 
+    (match formula_base_heap with
+    | Heapdynamic {h_formula_heap_node; h_formula_heap_content; _ } -> 
+      let rec helper (li:(P.exp list)) acc :P.exp = 
+       (
+          match li with 
+          | [] -> raise (Foo "mismatched filed")
+          | p :: xs -> if acc = 0 then p 
+          else helper xs (acc-1)
+        )
+      in helper (snd (List.hd h_formula_heap_content)) index 
+
+    | _ -> raise (Foo "retriveValueFromCurrent-Base")
+    )
+
+
+  | _ -> raise (Foo "retriveValueFromCurrent")
+  ;;
+
+let (stack:((ident * P.exp) list ref)) = ref []  
+
+
+let updateStack id (value:P.exp) = 
+  let temp = !stack in 
+  let rec helper (li: (ident * P.exp) list) : (ident * P.exp) list  = 
+    match li with 
+    | [] -> [(id, value)]
+    | (y, id') :: xs -> 
+      if String.compare y id == 0 then (y, value) :: xs
+      else (y, id') :: (helper xs)
+  in stack := helper temp 
+  ;;
+
+
+
+let rec oop_verification_method_aux obj decl expr (current:specs) : specs = 
+match current with 
+| Err _ -> raise (Foo "Bad State")
+| Ok current' -> 
+
+	(match expr with
+  
+  | Block {exp_block_body; _ } -> oop_verification_method_aux obj decl exp_block_body current
+  
+  | Seq {exp_seq_exp1; exp_seq_exp2; _ } -> 
+    let temp = oop_verification_method_aux obj decl exp_seq_exp1 current in 
+    oop_verification_method_aux obj decl exp_seq_exp2 temp 
+
+  (* Read *)
+  | VarDecl {exp_var_decl_type; exp_var_decl_decls; _} -> 
+    let (id, expO, _) = List.hd exp_var_decl_decls in 
+    (match expO with 
+    | None -> raise (Foo "VarDecl not yet!")
+    | Some expRHS -> 
+      (match expRHS with
+      | Member {exp_member_base; exp_member_fields; _ } -> 
+        if String.compare (kind_of_Exp exp_member_base) "This" == 0 then 
+          let field = List.hd exp_member_fields in 
+          let index = lookup_Field_In_Object obj field in 
+          let value = retriveValueFromCurrent current' index in 
+          let () = updateStack id value in 
+          current 
+        else raise (Foo ("VarDecl-expRHS-Member: " ^ kind_of_Exp expRHS))
+
+    
+
+      | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
+      )
+    
+    )
+  
+  
+
+
+
+  
+  | Assign {exp_assign_op; exp_assign_lhs; exp_assign_rhs; _ } -> 
+      let (lhs, rhs) = (exp_assign_lhs, exp_assign_rhs) in 
+      (match (lhs, rhs) with 
+      | (VarDecl _, VarDecl _ ) -> raise (Foo "bingo!")
+      | _ -> raise (Foo (kind_of_Exp lhs ^ " " ^ kind_of_Exp rhs)) 
+      )
+
+
+
+  | _ -> print_string (kind_of_Exp expr ^ " "); current 
+  )
 
 (*
+	| Return rtn -> 
+
 	| _ -> raise (Foo ("oop_verification_method_aux not yet " ^ kind_of_Exp expr))
 
-	| Return rtn -> 
+
+
 	| Assert of exp_assert
-  | Assign of exp_assign
   | Binary of exp_binary
   | Bind of exp_bind
-  | Block of exp_block
+
   | BoolLit of exp_bool_lit
   | Break of loc
   | CallRecv of exp_call_recv
@@ -92,30 +188,28 @@ let rec oop_verification_method_aux env decl expr current : (specs * specs) list
   | Member of exp_member
   | New of exp_new
   | Null of loc
-  | Seq of exp_seq
   | This of exp_this
 (*  | Throw of exp_throw *)
   | Unary of exp_unary
   | Unfold of exp_unfold
   | Var of exp_var
-  | VarDecl of exp_var_decl
   | While of exp_while
 	*)
 
 	;;
 
-let oop_verification_method (env:Iast.data_decl) (decl: Iast.proc_decl) : string = 
+let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
 	match decl.proc_body with 
 	| None -> raise (Foo "oop_verification_method not yet")
 	| Some exp -> 
-		let initalState = decl.proc_static_specs in 
+		let initalState = (fst(List.hd (decl.proc_static_specs))) in 
 		let startTimeStamp = Unix.time() in
-		let final = oop_verification_method_aux env decl exp initalState in
+		let final = oop_verification_method_aux obj decl exp initalState in
 		let startTimeStamp01 = Unix.time() in 
-		("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ env.data_name ^" ==========\n" ^
+		("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n" ^
 		"[Pre  Condition] " ^ string_of_form_list decl.proc_static_specs ^"\n"^ 
 		"[Post Condition] " ^ string_of_form_list decl.proc_dynamic_specs ^"\n"^ 
-		"[Inferred Post Effects] " ^ string_of_form_list final  ^"\n"^
+		"[Inferred Post Effects] " ^ string_of_spec final  ^"\n"^
 		"[Reasoning Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
 		)
 
@@ -140,8 +234,9 @@ let oop_verification (decl:Iast.prog_decl) =
 
 
 	  
-let () =
-	let source_files = ["test.ss"] in
+let () = 
+  let inputfile = (Sys.getcwd () ^ "/" ^ Sys.argv.(1)) in
+	let source_files = [inputfile] in
   let r = List.map parse_file_full source_files in
 	(* let r1 = List.map Astsimp.trans_prog prog in *)
   let _ = List.map print_string (List.map Iprinter.string_of_program r) in 
