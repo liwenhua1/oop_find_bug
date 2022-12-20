@@ -91,6 +91,33 @@ let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp =
   | _ -> raise (Foo "retriveValueFromCurrent")
   ;;
 
+let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.formula = 
+  match spec with 
+  | Iast.F.Base {formula_base_heap; formula_base_pure; formula_base_pos} -> 
+    (match formula_base_heap with
+    | Heapdynamic {h_formula_heap_node; h_formula_heap_content; h_formula_heap_pos } -> 
+
+      let rec helper (li:(P.exp list)) acc :(P.exp list) = 
+       (
+          match li with 
+          | [] -> raise (Foo "writeToCurrentSpec mismatched filed")
+          | p :: xs -> if acc = 0 then value :: xs 
+          else p :: (helper xs (acc-1))
+        )
+      in 
+        let temp = helper (snd (List.hd h_formula_heap_content)) index in 
+
+        let heap' = (fst (List.hd h_formula_heap_content) , temp) :: (List.tl h_formula_heap_content) in 
+        Iast.F.Base{formula_base_heap= Heapdynamic{ h_formula_heap_node=h_formula_heap_node; h_formula_heap_content=heap' ; h_formula_heap_pos=h_formula_heap_pos}; formula_base_pure=formula_base_pure; formula_base_pos=formula_base_pos}
+      
+
+    | _ -> raise (Foo "writeToCurrentSpec-Base")
+    )
+
+
+  | _ -> raise (Foo "writeToCurrentSpec")
+  ;;
+
 let (stack:((ident * P.exp) list ref)) = ref []  
 
 
@@ -105,6 +132,16 @@ let updateStack id (value:P.exp) =
   in stack := helper temp 
   ;;
 
+let retriveStack exp_var_name : P.exp = 
+  let temp = !stack in 
+  let rec helper (li: (ident * P.exp) list) : P.exp = 
+    match li with 
+    | [] -> raise (Foo (exp_var_name ^ " is undefined "))
+    | (y, id') :: xs -> 
+      if String.compare y exp_var_name == 0 then id' 
+      else (helper xs)
+  in helper temp 
+;;
 
 
 let rec oop_verification_method_aux obj decl expr (current:specs) : specs = 
@@ -122,7 +159,7 @@ match current with
 
   (* Read *)
   | VarDecl {exp_var_decl_type; exp_var_decl_decls; _} -> 
-    let (id, expO, _) = List.hd exp_var_decl_decls in 
+    let (id, expO, loc) = List.hd exp_var_decl_decls in 
     (match expO with 
     | None -> raise (Foo "VarDecl not yet!")
     | Some expRHS -> 
@@ -136,7 +173,19 @@ match current with
           current 
         else raise (Foo ("VarDecl-expRHS-Member: " ^ kind_of_Exp expRHS))
 
-    
+      | Binary {exp_binary_op; exp_binary_oper1; exp_binary_oper2} -> 
+        (match exp_binary_op, exp_binary_oper1, exp_binary_oper2 with 
+        | (OpPlus, Var {exp_var_name; exp_var_pos }, IntLit {exp_int_lit_val; exp_int_lit_pos}) -> 
+          let value = Iast.P.Add (retriveStack  exp_var_name ,  IConst(exp_int_lit_val, exp_int_lit_pos), loc) in 
+          let () = updateStack id value in 
+          current
+        | (OpMinus, Var {exp_var_name; exp_var_pos }, IntLit {exp_int_lit_val; exp_int_lit_pos}) -> 
+          let value = Iast.P.Subtract (retriveStack  exp_var_name ,  IConst(exp_int_lit_val, exp_int_lit_pos), loc) in 
+          let () = updateStack id value in 
+          current
+
+        | _ -> raise (Foo ("VarDecl-expRHS-Binary: " ^ kind_of_Exp exp_binary_oper1 ^ " " ^ kind_of_Exp exp_binary_oper2 ))
+        )
 
       | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
       )
@@ -152,7 +201,18 @@ match current with
       let (lhs, rhs) = (exp_assign_lhs, exp_assign_rhs) in 
       (match (lhs, rhs) with 
       | (VarDecl _, VarDecl _ ) -> raise (Foo "bingo!")
-      | _ -> raise (Foo (kind_of_Exp lhs ^ " " ^ kind_of_Exp rhs)) 
+      | (Member {exp_member_base; exp_member_fields; _ }, Var {exp_var_name; exp_var_pos }) ->
+        if String.compare (kind_of_Exp exp_member_base) "This" == 0 then 
+          let (value:P.exp) = retriveStack exp_var_name in 
+          let (field:ident) = List.hd exp_member_fields in 
+          let index = lookup_Field_In_Object obj field in 
+
+
+          (Ok (writeToCurrentSpec current' index value))
+
+
+        else raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
+      | _ -> raise (Foo ("Assign: "^kind_of_Exp lhs ^ " " ^ kind_of_Exp rhs)) 
       )
 
 
