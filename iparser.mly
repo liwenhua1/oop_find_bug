@@ -25,8 +25,9 @@
   type spec_qualifier =
 	| Static
 	| Dynamic 
-	| Static_u
+	(*| Static_u
 	| Dynamic_u
+	*)
 
   type ann =
 	| AnnMode of mode
@@ -82,12 +83,12 @@
 
   let rec remove_spec_qualifier (_, pre, post) = (pre, post)
   let rec remove_spec_property (pre, post) = match pre with
-												| Ok a -> match post with
+												| Ok a -> (match post with
 															| Ok b -> (a,b)
-															| Err b -> (a,b)
-											    | Err a -> match post with
+															| Err b -> (a,b))
+											    | Err a -> (match post with
 															| Ok b -> (a,b)
-															| Err b -> (a,b)
+															| Err b -> (a,b))
 (*
 let rec process_heap_node ide fields position= 
 		 match fields with

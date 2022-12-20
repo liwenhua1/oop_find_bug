@@ -101,7 +101,7 @@ let trim_quotes s =
   else
     trim_last s
 
-let unescaped s =
+(*let unescaped s =
   let n = ref 0 in
     for i = 0 to String.length s - 1 do
       n := !n +
@@ -114,7 +114,7 @@ let unescaped s =
         | _ -> 1)
     done;
     if !n = String.length s then s else begin
-      let s' = String.create !n in
+      let s' = BytesLabels.create !n in
       n := 0;
       let skip = ref 0 in
       (try (for i = 0 to String.length s - 1 do
@@ -134,6 +134,7 @@ let unescaped s =
       done) with Bail -> ());
       Str.first_chars (Bytes.to_string s') (String.length s - !skip)
     end
+    *)
 
 let trim_str input =
   let start_idx = ref 0 in

@@ -23,16 +23,15 @@ let parse_file_full file_name : Iast.prog_decl =
     with
 		End_of_file -> exit 0	  
 
-let oop_verification_aux (decl: Iast.proc_decl) = 
-	let {proc_name; _ } = decl in 
-	print_string (proc_name)
+let oop_verification_object (decl: Iast.data_decl) = 
+	let {data_name;data_fields;data_parent_name;data_invs; data_methods} = decl in 
+	print_string ("here: "^ data_name ^"\n")
 ;;
 
 
 let oop_verification (decl:Iast.prog_decl) = 
-	print_string ("lalalallallalal\n");
-	let {prog_data_decls; prog_enum_decls; prog_view_decls;  prog_proc_decls; _ } =  decl in 
-	List.map (fun a -> oop_verification_aux a) prog_proc_decls 
+	let {prog_data_decls; _ } =  decl in 
+	List.map (fun a -> oop_verification_object a) prog_data_decls 
 ;;
 	
 
