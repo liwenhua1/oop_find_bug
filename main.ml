@@ -194,9 +194,7 @@ match current with
   
   
 
-
-
-  
+    (* Write *)
   | Assign {exp_assign_op; exp_assign_lhs; exp_assign_rhs; _ } -> 
       let (lhs, rhs) = (exp_assign_lhs, exp_assign_rhs) in 
       (match (lhs, rhs) with 

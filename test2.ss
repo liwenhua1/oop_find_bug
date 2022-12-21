@@ -12,7 +12,7 @@ class Cnt {
 		int temp1 = temp + 1;
 		this.val = temp1; 
 		int temp = this.val1;
-		int temp1 = temp + 1;
+		int temp1 = temp - 1;
 		this.val1 = temp1; 
 	}
 }
