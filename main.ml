@@ -267,8 +267,8 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
 		let final = oop_verification_method_aux obj decl exp initalState in
 		let startTimeStamp01 = Unix.time() in 
 		("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n" ^
-		"[Pre  Condition] " ^ string_of_form_list decl.proc_static_specs ^"\n"^ 
-		"[Post Condition] " ^ string_of_form_list decl.proc_dynamic_specs ^"\n"^ 
+		"[Pre  Condition] " ^ string_of_spec (fst (List.hd decl.proc_static_specs)) ^"\n"^ 
+		"[Post Condition] " ^ string_of_spec (snd (List.hd decl.proc_static_specs)) ^"\n"^ 
 		"[Inferred Post Effects] " ^ string_of_spec final  ^"\n"^
 		"[Reasoning Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
 		)
