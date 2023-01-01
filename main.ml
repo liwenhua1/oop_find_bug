@@ -261,7 +261,7 @@ match current with
       | (Member {exp_member_base=v1; exp_member_fields; _ }, a) ->
         (match v1 with
         | Var {exp_var_name = v2; _ } -> let null_write = null_test current' v2 in
-             if null_write == true then let _ = print_string "NPE detected" in (Err current')
+             if null_write == true then let _ = print_string "NPE detected " in (Err current')
              else (match a with 
                     |Var {exp_var_name; exp_var_pos } -> raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
                     |_ -> raise (Foo ("Int"))
@@ -284,7 +284,7 @@ match current with
           | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
              if r1 == true then let res = up_down_cast r2 exp_cast_target_type in
                  if res == true then let form = Ipure.BForm (Eq (Var ((v1 , Unprimed), po), Var ((v2 , Unprimed), po), po)) in
-                  (Ok (update_pure current' form po)) else let _ = print_string "cast_error_detected" in (Err current')
+                  (Ok (update_pure current' form po)) else let _ = print_string "cast_error_detected " in (Err current')
              else raise (Foo ("Variable " ^ v2 ^" not in spec"))
           |_ -> raise (Foo ("Other heap formula: cast")))
         | _ ->  raise (Foo (" not a var_exp for casting ")))
