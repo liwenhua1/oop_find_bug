@@ -263,15 +263,19 @@ match current with
         | Var {exp_var_name = v2; _ } -> let null_write = null_test current' v2 in
              if null_write == true then let _ = print_string "NPE detected" in (Err current')
              else (match a with 
-           |Var {exp_var_name; exp_var_pos } -> 
-            if String.compare (kind_of_Exp v1) "This" == 0 then 
-               let (value:P.exp) = retriveStack exp_var_name in 
-               let (field:ident) = List.hd exp_member_fields in 
-               let index = lookup_Field_In_Object obj field in 
-               (Ok (writeToCurrentSpec current' index value))
-            else raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
-           |_ -> raise (Foo ("Int"))
+                    |Var {exp_var_name; exp_var_pos } -> raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
+                    |_ -> raise (Foo ("Int"))
           )
+        | This _ -> let null_write = null_test current' "this" in
+          if null_write == true then let _ = print_string "NPE detected" in (Err current')
+          else (match a with 
+               |Var {exp_var_name; exp_var_pos } -> 
+                 let (value:P.exp) = retriveStack exp_var_name in 
+                 let (field:ident) = List.hd exp_member_fields in 
+                 let index = lookup_Field_In_Object obj field in 
+                 (Ok (writeToCurrentSpec current' index value))
+               |_ -> raise (Foo ("Int"))
+     )
         | _ -> raise (Foo ("Only support variables"))
           )
       | (Var {exp_var_name = v1; exp_var_pos = po }, Cast { exp_cast_target_type ; exp_cast_body ; _ } )-> 
