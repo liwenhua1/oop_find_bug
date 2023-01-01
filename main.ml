@@ -6,6 +6,8 @@ open Iprinter
 open Ilexer
 open Globals
 open Iast
+open Ipure
+
 
 exception Foo of string
 
@@ -59,6 +61,7 @@ let kind_of_Exp exp : string =
   | Var _ -> "Var"
   | VarDecl _ -> "VarDecl"
   | While _ -> "While"
+  | Instance _ -> "Instance"
 
 
 let lookup_Field_In_Object obj (field:ident) : int = 
@@ -91,6 +94,45 @@ let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp =
   | _ -> raise (Foo "retriveValueFromCurrent")
   ;;
 
+  let rec retriveContentfromNode (spec:Iast.F.h_formula) name = 
+    match spec with 
+     | Heapdynamic {h_formula_heap_node; h_formula_heap_content; _ } -> 
+        if (String.compare (fst h_formula_heap_node) name == 0) then (true, h_formula_heap_content)
+        else (false, h_formula_heap_content)
+     | Star {h_formula_star_h1; h_formula_star_h2;_} -> 
+      let (r1,r2) = retriveContentfromNode h_formula_star_h1 name in
+        if r1 == true then (true, r2)
+        else let (r1,r2) = retriveContentfromNode h_formula_star_h2 name in
+             if r1 == true then (true, r2)
+             else (false, r2)
+     | _ -> raise (Foo "retriveValueFromCurrent")
+    ;;
+
+let rec retriveContentfromPure (spec:formula) name =
+      match spec with
+       | Ipure.BForm (Eq (Var ((v1,pr),p1), b, p2))  -> if (String.compare v1 name == 0) then (true, b) else (false, b )
+       | Ipure.And (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
+            if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
+            if r1 == true then (true, r2) else (false, r2)
+       | Ipure.Or (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
+            if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
+            if r1 == true then (true, r2) else (false, r2)
+       | _ ->  raise (Foo ( "other Pure formula "))
+
+       ;;
+
+let up_down_cast (spec:(ident * P.exp list) list) type_to_ckeck = 
+      match type_to_ckeck with 
+       | Named a -> List.fold_right (fun (x,y) rs -> if Iast.sub_type (Named x) (Named a) then (rs && true) else false) spec true
+       | _ -> raise (Foo "writeToCurrentSpec mismatched filed")
+      ;;
+
+let update_pure (spec:Iast.F.formula) (formu:Ipure.formula) po=
+  match spec with
+   | Base { formula_base_heap = h; formula_base_pure = p; formula_base_pos = po } -> let new_p = Ipure.And (p, formu, po)  in
+     Iast.F.Base {formula_base_heap = h; formula_base_pure = new_p; formula_base_pos = po }
+   | _ -> raise (Foo "writeToCurrentSpec mismatched filed")
+   ;;
 let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.formula = 
   match spec with 
   | Iast.F.Base {formula_base_heap; formula_base_pure; formula_base_pos} -> 
@@ -143,10 +185,27 @@ let retriveStack exp_var_name : P.exp =
   in helper temp 
 ;;
 
+let retriveheap (spec:Iast.F.formula) = match spec with 
+    | Iast.F.Base {formula_base_heap; _ } -> formula_base_heap
+    | _ -> raise (Foo ( "other F formula "))
+;;
+
+let retrivepure (spec:Iast.F.formula) = match spec with 
+    | Iast.F.Base {formula_base_pure} -> formula_base_pure
+    | _ -> raise (Foo ( "other F formula "))
+;;
+
+let null_test spec var_name = 
+  let (r1,r2) = retriveContentfromNode (retriveheap spec) var_name in
+  if r1 == false then let (res1,res2) = retriveContentfromPure (retrivepure spec) var_name in
+     if res1 == true then if Ipure.is_null res2 then true else false
+     else false
+  else false 
+;;
 
 let rec oop_verification_method_aux obj decl expr (current:specs) : specs = 
 match current with 
-| Err _ -> raise (Foo "Bad State")
+| Err a -> Err a
 | Ok current' -> 
 
 	(match expr with
@@ -201,21 +260,57 @@ match current with
       let (lhs, rhs) = (exp_assign_lhs, exp_assign_rhs) in 
       (match (lhs, rhs) with 
       | (VarDecl _, VarDecl _ ) -> raise (Foo "bingo!")
-      | (Member {exp_member_base; exp_member_fields; _ }, Var {exp_var_name; exp_var_pos }) ->
-        if String.compare (kind_of_Exp exp_member_base) "This" == 0 then 
-          let (value:P.exp) = retriveStack exp_var_name in 
-          let (field:ident) = List.hd exp_member_fields in 
-          let index = lookup_Field_In_Object obj field in 
-
-
-          (Ok (writeToCurrentSpec current' index value))
-
-
-        else raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
+      | (Member {exp_member_base=v1; exp_member_fields; _ }, a) ->
+        (match v1 with
+        | Var {exp_var_name = v2; _ } -> let null_write = null_test current' v2 in
+             if null_write == true then let _ = print_string "NPE detected" in (Err current')
+             else (match a with 
+           |Var {exp_var_name; exp_var_pos } -> 
+            if String.compare (kind_of_Exp v1) "This" == 0 then 
+               let (value:P.exp) = retriveStack exp_var_name in 
+               let (field:ident) = List.hd exp_member_fields in 
+               let index = lookup_Field_In_Object obj field in 
+               (Ok (writeToCurrentSpec current' index value))
+            else raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
+           |_ -> raise (Foo ("Int"))
+          )
+        | _ -> raise (Foo ("Only support variables"))
+          )
+      | (Var {exp_var_name = v1; exp_var_pos = po }, Cast { exp_cast_target_type ; exp_cast_body ; _ } )-> 
+        (match exp_cast_body with
+        | Var { exp_var_name = v2 ;_ } -> (match current' with 
+          | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
+             if r1 == true then let res = up_down_cast r2 exp_cast_target_type in
+                 if res == true then let form = Ipure.BForm (Eq (Var ((v1 , Unprimed), po), Var ((v2 , Unprimed), po), po)) in
+                  (Ok (update_pure current' form po)) else let _ = print_string "cast_error_detected" in (Err current')
+             else raise (Foo ("Variable " ^ v2 ^" not in spec"))
+          |_ -> raise (Foo ("Other heap formula: cast")))
+        | _ ->  raise (Foo (" not a var_exp for casting ")))
+      | (Var { exp_var_name = v1 ; exp_var_pos = p }, Instance { exp_instance_var; exp_intance_type=t ;_ }) -> (match current' with 
+          | Iast.F.Base {formula_base_heap; _ } -> ( match exp_instance_var with
+            | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
+                if r1 == true then let res = up_down_cast r2 t in 
+                   if res == true then let form = Ipure.BForm (Eq (Var ((v1 , Unprimed), p), IConst (1, p), p)) in
+                      (Ok (update_pure current' form p))
+                   else let form = Ipure.BForm (Eq (Var ((v1 , Unprimed), p), IConst (0, p), p)) in
+                      (Ok (update_pure current' form p))
+                else raise (Foo ("Variable " ^ v2 ^" not in spec"))
+            | _ -> raise (Foo ("not a var_exp for instanceof "))
+                )
+                 
+          |_ -> raise (Foo ("Other heap formula: instanceof ")))
+         
+      
       | _ -> raise (Foo ("Assign: "^kind_of_Exp lhs ^ " " ^ kind_of_Exp rhs)) 
+      
       )
-
-
+    (* match exp_cast_body with
+    | Var { exp_var_name ;_ } -> match current' with 
+       | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap exp_var_name in
+         if r1 == true then (Ok current')
+         else (Err current')
+       | _ -> raise (Foo ("Assign-Member-Var: "))
+    |_ *)
 
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
@@ -298,7 +393,10 @@ let () =
   let inputfile = (Sys.getcwd () ^ "/" ^ Sys.argv.(1)) in
 	let source_files = [inputfile] in
   let r = List.map parse_file_full source_files in
-	(* let r1 = List.map Astsimp.trans_prog prog in *)
+	let r1 = List.hd r in 
+  let _ = Iast.build_hierarchy r1 in
+  let res = Iast.sub_type (Named "Cnt") (Named "FastCnt") in
+  let _ = print_string (Bool.to_string res) in
   let _ = List.map print_string (List.map Iprinter.string_of_program r) in 
 	let _ = List.map (fun a -> oop_verification a) r in 
 	(* Tpdispatcher.print_stats (); *)

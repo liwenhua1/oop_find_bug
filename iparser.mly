@@ -181,6 +181,7 @@ let rec process_heap_node ide fields position=
 %token INT
 %token INTERR
 %token INTERSECT
+%token INSTANCEOF
 %token INV
 %token LT
 %token LTE
@@ -1573,6 +1574,7 @@ unary_expression_not_plusminus
 		mkUnary OpNot $2 (get_pos 1)
 	  }
   | cast_expression { $1 }
+  | instanceof_expression { $1 }
 ;
 
 postfix_expression
@@ -1580,6 +1582,11 @@ postfix_expression
   | post_increment_expression { $1 }
   | post_decrement_expression { $1}
 ;
+
+instanceof_expression 
+  : member_name INSTANCEOF typ { Instance { exp_instance_var = $1; (*TODO: fix this *)
+						  exp_intance_type = $3;
+						  exp_instance_pos = get_pos 1 }}
 
 cast_expression
   : OPAREN expression CPAREN unary_expression_not_plusminus { 

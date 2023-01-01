@@ -54,6 +54,7 @@
 	 ("in", IN);
 	 ("int", INT);
 	 ("intersect", INTERSECT);
+	 ("instanceof", INSTANCEOF);
 	 ("inv", INV);
 	 ("max", MAX);
 	 ("min", MIN);

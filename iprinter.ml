@@ -358,6 +358,7 @@ let rec string_of_exp = function
   | Dprint l                       -> "dprint" 
   | Debug ({exp_debug_flag = f})   -> "debug " ^ (if f then "on" else "off")
   | This _ -> "this"
+  | Instance ({ exp_instance_var = v ; exp_intance_type = t}) -> (string_of_exp v) ^ " instanceof " ^ (string_of_typ t)
 
 and 
    (* function to transform a list of expression in a string *)

@@ -147,10 +147,15 @@ and exp_cast = { exp_cast_target_type : typ;
 				 exp_cast_body : exp;
 				 exp_cast_pos : loc }
 
+and exp_instance = { exp_instance_var : exp; (*TODO: fix this *)
+         exp_intance_type :typ ;
+         exp_instance_pos :loc }
+
 and exp_cond = { exp_cond_condition : exp;
 				 exp_cond_then_arm : exp;
 				 exp_cond_else_arm : exp;
 				 exp_cond_pos : loc }
+
 
 and exp_const_decl = { exp_const_decl_type : typ;
 					   exp_const_decl_decls : (ident * exp * loc) list;
@@ -229,6 +234,7 @@ and exp =
   | Empty of loc
   | FloatLit of exp_float_lit
   | IntLit of exp_int_lit
+  | Instance of exp_instance
   | Java of exp_java
   | Member of exp_member
   | New of exp_new
@@ -311,6 +317,7 @@ let get_exp_pos (e0 : exp) : loc = match e0 with
   | VarDecl e -> e.exp_var_decl_pos
   | While e -> e.exp_while_pos
   | Unfold e -> e.exp_unfold_pos
+  | Instance e -> e.exp_instance_pos 
 	  
 (* look up functions *)
 
@@ -479,6 +486,7 @@ and contains_field (e0 : exp) : bool = match e0 with
   | VarDecl _ -> false (* this can't happen on RHS anyway *)
   | While e -> (contains_field e.exp_while_condition) || (contains_field e.exp_while_body)
   | Unfold _ -> false
+  | Instance _ -> false
 
 
 (* smart constructors *)
@@ -574,14 +582,13 @@ let find_classes (c1 : ident) (c2 : ident) : ident list =
 let sub_type (t1 : typ) (t2 : typ) = 
   let c1 = name_of_type t1 in
   let c2 = name_of_type t2 in
-	if c1 = c2 || (is_named_type t2 && c1 = "") then true
-	else false
-	  (*
+	(* if c1 = c2 || (is_named_type t2 && c1 = "") then true
+	else false *)
 		try
 		let _ = find_classes c1 c2 in
 		true
 		with
 		| Not_found -> false
-	  *)
+	  
 
 let compatible_types (t1 : typ) (t2 : typ) = sub_type t1 t2 || sub_type t2 t1
