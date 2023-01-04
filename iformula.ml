@@ -39,7 +39,7 @@ and h_formula = (* heap formula *)
   | HFalse
 	  
 and h_formula_dynamic = {h_formula_heap_node : (ident * primed);
-h_formula_heap_content : (ident * P.exp list) list;
+h_formula_heap_content : (ident * ((ident * P.exp) list)) list;
 h_formula_heap_pos : loc 
 }
 

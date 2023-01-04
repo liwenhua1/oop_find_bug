@@ -663,8 +663,24 @@ all_class_field
   | all_class_field class_field {$2 :: $1}
 
 class_field
-  : IDENTIFIER LT heap_arg_list GT {($1,$3)}
+  : IDENTIFIER LT heap_arg_list_with_name GT {($1,$3)}
 ;
+
+heap_arg_list_with_name
+  : { [] }
+  | heap_arg_list_aux_with_name { List.rev $1 }
+;
+
+heap_arg_list_aux_with_name
+  : heap_arg_with_name { [$1] }
+  | heap_arg_list_aux_with_name COMMA heap_arg_with_name { $3 :: $1}
+;
+
+heap_arg_with_name
+  : IDENTIFIER COLON cexp { ($1,$3) }
+;
+
+
 /*
   | cid COLONCOLON IDENTIFIER LT opt_heap_arg_list GT DOLLAR {
 		let h = F.HeapNode { F.h_formula_heap_node = $1;

@@ -38,7 +38,14 @@ class Cnt {
 		x.val = 5;
 	}
 
-	void bug2()
+    void bug2()
+		static
+			presumes this::Cnt<v, w> & x=null achieves this::Cnt<v+1>;
+	{
+		y = x.val ;
+	}
+
+	void bug3()
 		static
 			presumes x::Cnt<v, w> achieves this::Cnt<v+1>;
 		
