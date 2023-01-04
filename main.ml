@@ -64,7 +64,7 @@ let kind_of_Exp exp : string =
   | Instance _ -> "Instance"
 
 
-let lookup_Field_In_Object obj (field:ident) : int = 
+(* let lookup_Field_In_Object obj (field:ident) : int = 
   let ctx = obj.data_fields in 
   let rec helper li (acc:int) = 
     match li with 
@@ -92,7 +92,7 @@ let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp =
 
 
   | _ -> raise (Foo "retriveValueFromCurrent")
-  ;;
+  ;; *)
 
   let rec retriveContentfromNode (spec:Iast.F.h_formula) name = 
     match spec with 
@@ -111,6 +111,12 @@ let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp =
 let rec retriveContentfromPure (spec:formula) name =
       match spec with
        | Ipure.BForm (Eq (Var ((v1,pr),p1), b, p2))  -> if (String.compare v1 name == 0) then (true, b) else (false, b )
+       | Ipure.BForm a -> (false, Null {
+        pos_fname = "";
+        pos_lnum =1;
+        pos_bol =1;
+        pos_cnum =1;
+      } )
        | Ipure.And (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
             if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
             if r1 == true then (true, r2) else (false, r2)
@@ -121,7 +127,7 @@ let rec retriveContentfromPure (spec:formula) name =
 
        ;;
 
-let up_down_cast (spec:(ident * P.exp list) list) type_to_ckeck = 
+let up_down_cast spec type_to_ckeck = 
       match type_to_ckeck with 
        | Named a -> List.fold_right (fun (x,y) rs -> if Iast.sub_type (Named x) (Named a) then (rs && true) else false) spec true
        | _ -> raise (Foo "writeToCurrentSpec mismatched filed")
@@ -133,7 +139,26 @@ let update_pure (spec:Iast.F.formula) (formu:Ipure.formula) po=
      Iast.F.Base {formula_base_heap = h; formula_base_pure = new_p; formula_base_pos = po }
    | _ -> raise (Foo "writeToCurrentSpec mismatched filed")
    ;;
-let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.formula = 
+
+let retrive_content_from_list node feild = 
+  let helper c_list f=  List.fold_right (fun (a,b) acc -> if (String.compare a f == 0) then [b] @ acc else acc ) c_list []  in
+  List.hd (List.fold_right (fun (a,b) res -> let r = helper b feild in if List.length r == 1 then r else []) node [])
+
+let update_content_list c_list feild value = 
+  List.fold_right (fun (a,b) acc -> if (String.compare a feild == 0) then [(a,value)] @ acc else [(a,b)] @ acc) c_list [] 
+let rec update_heap (spec:Iast.F.h_formula) var f value = 
+  match spec with 
+     | Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = c; h_formula_heap_pos = po } -> 
+        if (String.compare (fst n) var == 0) then 
+          let res = List.fold_right (fun (a,b) acc -> acc @ [(a, update_content_list b f value)]) c [] in
+          Iast.F.Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = res; h_formula_heap_pos = po }
+        else spec
+     | Star {h_formula_star_h1 = h1; h_formula_star_h2 = h2; h_formula_star_pos=po} -> 
+       Iast.F.Star {h_formula_star_h1 = update_heap h1 var f value; h_formula_star_h2 = update_heap h2 var f value; h_formula_star_pos=po}
+     | _ -> raise (Foo "retriveValueFromCurrent")
+    ;;
+
+(*let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.formula = 
   match spec with 
   | Iast.F.Base {formula_base_heap; formula_base_pure; formula_base_pos} -> 
     (match formula_base_heap with
@@ -142,7 +167,7 @@ let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.
       let rec helper (li:(P.exp list)) acc :(P.exp list) = 
        (
           match li with 
-          | [] -> raise (Foo "writeToCurrentSpec mismatched filed")
+          | [] -> raise (Foo "writeToCurrentSpec mismatched feild")
           | p :: xs -> if acc = 0 then value :: xs 
           else p :: (helper xs (acc-1))
         )
@@ -158,12 +183,12 @@ let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.
 
 
   | _ -> raise (Foo "writeToCurrentSpec")
-  ;;
+  ;; *)
 
-let (stack:((ident * P.exp) list ref)) = ref []  
+(* let (stack:((ident * P.exp) list ref)) = ref []   *)
 
 
-let updateStack id (value:P.exp) = 
+(* let updateStack id (value:P.exp) = 
   let temp = !stack in 
   let rec helper (li: (ident * P.exp) list) : (ident * P.exp) list  = 
     match li with 
@@ -183,7 +208,7 @@ let retriveStack exp_var_name : P.exp =
       if String.compare y exp_var_name == 0 then id' 
       else (helper xs)
   in helper temp 
-;;
+;; *)
 
 let retriveheap (spec:Iast.F.formula) = match spec with 
     | Iast.F.Base {formula_base_heap; _ } -> formula_base_heap
@@ -220,28 +245,42 @@ match current with
   | VarDecl {exp_var_decl_type; exp_var_decl_decls; _} -> 
     let (id, expO, loc) = List.hd exp_var_decl_decls in 
     (match expO with 
-    | None -> raise (Foo "VarDecl not yet!")
+    | None -> let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Null loc, loc)) in
+          (Ok (update_pure current' form loc))
     | Some expRHS -> 
       (match expRHS with
       | Member {exp_member_base; exp_member_fields; _ } -> 
-        if String.compare (kind_of_Exp exp_member_base) "This" == 0 then 
-          let field = List.hd exp_member_fields in 
+         let var1 = kind_of_Exp exp_member_base in
+         let var = if (String.compare var1 "This" == 0) then "this" else var1 in
+         let field = List.hd exp_member_fields in 
+         let (r1,r2) = (retriveContentfromNode (retriveheap current') var) in
+         if r1 == true then let value = retrive_content_from_list r2 field in
+         let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), value, loc)) in
+             (Ok (update_pure current' form loc))
+         else raise (Foo ("Var not in spec"))
+        (* if String.compare (kind_of_Exp exp_member_base) "This" == 0 then 
+          
           let index = lookup_Field_In_Object obj field in 
           let value = retriveValueFromCurrent current' index in 
           let () = updateStack id value in 
           current 
-        else raise (Foo ("VarDecl-expRHS-Member: " ^ kind_of_Exp expRHS))
+        else raise (Foo ("VarDecl-expRHS-Member: " ^ kind_of_Exp expRHS)) *)
 
       | Binary {exp_binary_op; exp_binary_oper1; exp_binary_oper2} -> 
         (match exp_binary_op, exp_binary_oper1, exp_binary_oper2 with 
-        | (OpPlus, Var {exp_var_name; exp_var_pos }, IntLit {exp_int_lit_val; exp_int_lit_pos}) -> 
-          let value = Iast.P.Add (retriveStack  exp_var_name ,  IConst(exp_int_lit_val, exp_int_lit_pos), loc) in 
-          let () = updateStack id value in 
-          current
-        | (OpMinus, Var {exp_var_name; exp_var_pos }, IntLit {exp_int_lit_val; exp_int_lit_pos}) -> 
-          let value = Iast.P.Subtract (retriveStack  exp_var_name ,  IConst(exp_int_lit_val, exp_int_lit_pos), loc) in 
-          let () = updateStack id value in 
-          current
+          | (OpPlus, Var a, Var b) -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc),Add (Var ((a.exp_var_name,Unprimed),loc), Var ((b.exp_var_name,Unprimed),loc),loc),loc)) in
+          (Ok (update_pure current' form loc))
+          | (OpPlus, Var a, IntLit b) -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc),Add (Var ((a.exp_var_name,Unprimed),loc), IConst (b.exp_int_lit_val,loc),loc),loc)) in
+          (Ok (update_pure current' form loc))
+          | (OpPlus, IntLit b, Var a) -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc),Add (Var ((a.exp_var_name,Unprimed),loc), IConst (b.exp_int_lit_val,loc),loc),loc)) in
+          (Ok (update_pure current' form loc))
+          | (OpMinus, Var a, Var b) -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc),Subtract (Var ((a.exp_var_name,Unprimed),loc), Var ((b.exp_var_name,Unprimed),loc),loc),loc)) in
+          (Ok (update_pure current' form loc))
+          | (OpMinus, Var a, IntLit b) -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc),Subtract (Var ((a.exp_var_name,Unprimed),loc), IConst (b.exp_int_lit_val,loc),loc),loc)) in
+          (Ok (update_pure current' form loc))
+          | (OpMinus, IntLit b, Var a) -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc),Subtract (Var ((a.exp_var_name,Unprimed),loc), IConst (b.exp_int_lit_val,loc),loc),loc)) in
+          (Ok (update_pure current' form loc))
+
 
         | _ -> raise (Foo ("VarDecl-expRHS-Binary: " ^ kind_of_Exp exp_binary_oper1 ^ " " ^ kind_of_Exp exp_binary_oper2 ))
         )
@@ -258,26 +297,81 @@ match current with
       let (lhs, rhs) = (exp_assign_lhs, exp_assign_rhs) in 
       (match (lhs, rhs) with 
       | (VarDecl _, VarDecl _ ) -> raise (Foo "bingo!")
-      | (Member {exp_member_base=v1; exp_member_fields; _ }, a) ->
+      | (Member {exp_member_base=v1; exp_member_fields = f; _ }, a) ->
         (match v1 with
         | Var {exp_var_name = v2; _ } -> let null_write = null_test current' v2 in
-             if null_write == true then let _ = print_string "NPE detected " in (Err current')
+             if null_write == true then let _ = print_string "NPE detected: null write " in (Err current')
              else (match a with 
-                    |Var {exp_var_name; exp_var_pos } -> raise (Foo ("Assign-Member-Var: " ^ kind_of_Exp lhs))
-                    |_ -> raise (Foo ("Int"))
+             | Var {exp_var_name = v3; exp_var_pos = po } -> let (r1,r2) = retriveContentfromPure (retrivepure current') v3 in
+               if r1 == true then let res = update_heap (retriveheap current') v2 (List.hd f) r2 in
+                  (Ok (Iformula.Base {formula_base_heap = res;
+                  formula_base_pure = retrivepure current';
+                  formula_base_pos= po }))
+               else let (r1,r2) = retriveContentfromNode (retriveheap current') v3 in
+                 if r1 == true then 
+                  let value = Ipure.Var ((v3, Unprimed), po) in 
+                  let res = update_heap (retriveheap current') v2 (List.hd f) value in
+                  (Ok (Iformula.Base {formula_base_heap = res;
+                  formula_base_pure = retrivepure current';
+                  formula_base_pos= po }))
+                 else raise (Foo ("Var not found"))
+             | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
+             let res = update_heap (retriveheap current') v2 (List.hd f) value in
+             (Ok (Iformula.Base {formula_base_heap = res;
+             formula_base_pure = retrivepure current';
+             formula_base_pos= po }))
+             |_ -> raise (Foo ("Exp not support")))
+        | This _ -> 
+          (* let null_write = null_test current' "this" in
+          if null_write == true then let _ = print_string "NPE detected" in (Err current') 
+          else *)
+              (match a with 
+               |Var {exp_var_name = v2; exp_var_pos = po } -> let (r1,r2) = retriveContentfromPure (retrivepure current') v2 in
+                 if r1 == true then let res = update_heap (retriveheap current') "this" (List.hd f) r2 in
+                    (Ok (Iformula.Base {formula_base_heap = res;
+                    formula_base_pure = retrivepure current';
+                    formula_base_pos= po }))
+                 else let (r1,r2) = retriveContentfromNode (retriveheap current') v2 in
+                   if r1 == true then 
+                    let value = Ipure.Var ((v2, Unprimed), po) in 
+                    let res = update_heap (retriveheap current') "this" (List.hd f) value in
+                    (Ok (Iformula.Base {formula_base_heap = res;
+                    formula_base_pure = retrivepure current';
+                    formula_base_pos= po }))
+                   else raise (Foo ("Var not found"))
+               | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
+               let res = update_heap (retriveheap current') "this" (List.hd f) value in
+               (Ok (Iformula.Base {formula_base_heap = res;
+               formula_base_pure = retrivepure current';
+               formula_base_pos= po }))
+               |_ -> raise (Foo ("Exp not support")))
+     
+        | _ -> raise (Foo ("Only support variables"))
           )
-        | This _ -> let null_write = null_test current' "this" in
-          if null_write == true then let _ = print_string "NPE detected" in (Err current')
-          else (match a with 
+      | (Var {exp_var_name = v1; _ }, Member {exp_member_base=v2; exp_member_fields; _ }) ->
+        (match v2 with
+        | Var {exp_var_name = v3; exp_var_pos = po } -> let null_read = null_test current' v3 in
+             if null_read == true then let _ = print_string "NPE detected: null read " in (Err current')
+             else raise (Foo ("Todo"))
+              (* let (r1,r2) = retriveContentfromPure (retrivepure current') v3 in
+                 if r1 == true then let value =  
+                    |_ -> raise (Foo ("Int"))
+          
+        | This _ -> 
+          (* let null_write = null_test current' "this" in
+          if null_write == true then let _ = print_string "NPE detected" in (Err current') 
+          else *)
+              match a with 
                |Var {exp_var_name; exp_var_pos } -> 
                  let (value:P.exp) = retriveStack exp_var_name in 
                  let (field:ident) = List.hd exp_member_fields in 
                  let index = lookup_Field_In_Object obj field in 
                  (Ok (writeToCurrentSpec current' index value))
-               |_ -> raise (Foo ("Int"))
-     )
+               |_ -> raise (Foo ("Int")) *)
+     
         | _ -> raise (Foo ("Only support variables"))
           )
+
       | (Var {exp_var_name = v1; exp_var_pos = po }, Cast { exp_cast_target_type ; exp_cast_body ; _ } )-> 
         (match exp_cast_body with
         | Var { exp_var_name = v2 ;_ } -> (match current' with 

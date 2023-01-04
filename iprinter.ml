@@ -120,6 +120,11 @@ let rec string_of_formula_exp_list l = match l with
   | h::t                       -> (string_of_formula_exp h) ^ ", " ^ (string_of_formula_exp_list t)
 ;;
   
+let rec string_of_formula_exp_list_with_name l = match l with 
+  | []                         -> ""
+  | (a,b)::[]                      -> a ^ ":" ^string_of_formula_exp b
+  | (a,b)::t                       -> (a ^ ":" ^string_of_formula_exp b) ^ ", " ^ (string_of_formula_exp_list_with_name t)
+;;
 (* pretty printing for boolean constraints *)
 let string_of_b_formula = function 
   | P.BConst (b,l)              -> if b <> true then string_of_bool b else ""
@@ -177,7 +182,7 @@ let is_bool_f = function
   | _                  -> false 
 ;;
 
-let string_of_dynamic_content a_list= List.fold_right (fun (a,b) rs -> a ^ "<" ^ (string_of_formula_exp_list b) ^ ">" ^ rs) a_list ""
+let string_of_dynamic_content a_list= List.fold_right (fun (a,b) rs -> a ^ "<" ^ (string_of_formula_exp_list_with_name b) ^ ">" ^ rs) a_list ""
 (* pretty printing for a heap formula *)
 let rec string_of_h_formula = function 
   | F.Star ({F.h_formula_star_h1 = f1;
