@@ -3,9 +3,9 @@ class Cnt {
 
 	void tick()
 		static
-			presumes this::Cnt<v> achieves this::Cnt<v+1> or this::Cnt<v+2>;
+			presumes this::Cnt<val:v> achieves this::Cnt<val:v+1> or this::Cnt<val:v+2>;
 		dynamic
-			presumes this::Cnt<v> achieves err this::Cnt<w> & v+1<=w<=v+2;
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		int x;
 		x = (int) x;
@@ -14,27 +14,27 @@ class Cnt {
 
 	int get()
 		static
-		presumes ok this::Cnt<v> achieves err this::Cnt<v> & res=v;
+		presumes ok this::Cnt<val:v> achieves err this::Cnt<val:v> & res=v;
 		dynamic
-		presumes this::Cnt<v> achieves this::Cnt<v> & res=v;
+		presumes this::Cnt<val:v> achieves this::Cnt<val:v> & res=v;
 	{
 		return this.val;
 	}
 
 	void set(int x)
 		static 
-		presumes this::Cnt<_> achieves this::Cnt<x>;
+		presumes this::Cnt<val:_> achieves this::Cnt<val:x>;
 		dynamic
-		presumes this::Cnt<_> & x>=0 achieves this::Cnt<x>;
+		presumes this::Cnt<val:_> & x>=0 achieves this::Cnt<val:x>;
 	{
 		this.val = x;
 	}		
 
 	void f1() 
 		static
-			presumes this::Cnt<v> achieves this::Cnt<v+1>;
+			presumes this::Cnt<val:v> achieves this::Cnt<val:v+1>;
 		dynamic
-			presumes this::Cnt<v> achieves this::Cnt<w> & v+1<=w<=v+2;
+			presumes this::Cnt<val:v> achieves this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		this.tick();
 	}
@@ -44,8 +44,8 @@ class Cnt {
 class FastCnt extends Cnt {
 	int bak;
 	void tick()
-		static presumes this::FastCnt<v> achieves this::FastCnt<v+2>;
-		dynamic presumes this::Cnt<v>FastCnt<> achieves this::Cnt<v+2>FastCnt<u>; 
+		static presumes this::FastCnt<val:v> achieves this::FastCnt<val:v+2>;
+		dynamic presumes this::Cnt<val:v>FastCnt<> achieves this::Cnt<val:v+2>FastCnt<val:u>; 
 	{
 		this.val = 
 			this.val + 2;

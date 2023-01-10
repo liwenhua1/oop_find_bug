@@ -4,9 +4,9 @@ class Cnt {
 
 	void tick()
 		static
-			presumes this::Cnt<v, w> achieves this::Cnt<v+1>;
+			presumes this::Cnt<val:v, val1:w> achieves this::Cnt<val:v+1>;
 		dynamic
-			presumes this::Cnt<v, w> achieves err this::Cnt<w> & v+1<=w<=v+2;
+			presumes this::Cnt<val:v, val1:w> achieves err this::Cnt<val1:w> & v+1<=w<=v+2;
 	{
 		int temp = this.val;
 		int temp1 = temp + 1;
