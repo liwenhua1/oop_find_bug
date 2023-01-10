@@ -15,6 +15,8 @@ class Cnt {
 		
 	}
 
+
+
 	void test2()
 		static
 			presumes x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
