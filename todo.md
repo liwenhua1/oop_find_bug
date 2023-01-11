@@ -19,3 +19,9 @@ pure = ex y1, y2. (y1 = 2 & y = y1 + 1)[y2/y] & y = (y + 5)[y2/y]
   
   ----------------------
    forall y1. y1 = 2
+
+
+this::Cnt<w,v>FastCnt<w>
+this::Cnt<w,v,p>*p::FastCnt<w>
+
+git config --global http.version HTTP/1.1

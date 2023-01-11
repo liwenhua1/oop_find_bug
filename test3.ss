@@ -4,9 +4,9 @@ class Cnt {
 
 	void tick()
 		static
-			presumes this::Cnt<v, w> achieves this::Cnt<v+1>;
+			presumes this::Cnt<val:v, val1:w> achieves this::Cnt<val:v+1>;
 		dynamic
-			presumes this::Cnt<v, w> achieves err this::Cnt<w> & v+1<=w<=v+2;
+			presumes this::Cnt<val:v, val1:w> achieves err this::Cnt<val1:w> & v+1<=w<=v+2;
 	{
 		int temp = this.val;
 		int temp1 = temp + 1;
@@ -18,14 +18,14 @@ class Cnt {
 
     void normal_cast()
          static
-			presumes x::Cnt<v, w>FastCnt<> achieves this::Cnt<v+1>;
+			presumes x::Cnt<val:v, val1:w>FastCnt<> achieves this::Cnt<val:v+1>;
         {
             y = (Cnt) x;
         }
 
      void instanceof1()
          static
-			presumes x::Cnt<v, w>FastCnt<> achieves this::Cnt<v+1>;
+			presumes x::Cnt<val:v, val1:w>FastCnt<> achieves this::Cnt<val:v+1>;
         {
             y = x instanceof Cnt;
             z = x instanceof FastCnt;
@@ -33,21 +33,21 @@ class Cnt {
 
 	void bug1()
 		static
-			presumes this::Cnt<v, w> & x=null achieves this::Cnt<v+1>;
+			presumes this::Cnt<val:v, val1:w> & x=null achieves this::Cnt<val:v+1>;
 	{
 		x.val = 5;
 	}
 
     void bug2()
 		static
-			presumes this::Cnt<v, w> & x=null achieves this::Cnt<v+1>;
+			presumes this::Cnt<val:v, val1:w> & x=null achieves this::Cnt<val:v+1>;
 	{
 		y = x.val ;
 	}
 
 	void bug3()
 		static
-			presumes x::Cnt<v, w> achieves this::Cnt<v+1>;
+			presumes x::Cnt<val:v, val1:w> achieves this::Cnt<val:v+1>;
 		
 	{
 		y = (FastCnt) x;
