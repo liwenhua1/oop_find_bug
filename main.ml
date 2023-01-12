@@ -320,7 +320,7 @@ match current with
              (Ok (Iformula.Base {formula_base_heap = res;
              formula_base_pure = retrivepure current';
              formula_base_pos= po }))
-             |_ -> raise (Foo ("Exp not support")))
+             |_ -> raise (Foo ("Exp not support 1")))
         | This _ -> 
           (* let null_write = null_test current' "this" in
           if null_write == true then let _ = print_string "NPE detected" in (Err current') 
@@ -344,7 +344,7 @@ match current with
                (Ok (Iformula.Base {formula_base_heap = res;
                formula_base_pure = retrivepure current';
                formula_base_pos= po }))
-               |_ -> raise (Foo ("Exp not support")))
+               |_ -> raise (Foo (kind_of_Exp expr ^ " " ^ "Exp not support 2")))
      
         | _ -> raise (Foo ("Only support variables"))
           )
@@ -458,10 +458,12 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
 		let final = oop_verification_method_aux obj decl exp initalState in
 		let startTimeStamp01 = Unix.time() in 
 		("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n" ^
-		"[Pre  Condition] " ^ string_of_spec (fst (List.hd decl.proc_static_specs)) ^"\n"^ 
-		"[Post Condition] " ^ string_of_spec (snd (List.hd decl.proc_static_specs)) ^"\n"^ 
-		"[Inferred Post Condition] " ^ string_of_spec final  ^"\n"^
-		"[Reasoning Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
+		"[Static  Pre ] " ^ string_of_spec (fst (List.hd decl.proc_static_specs)) ^"\n"^ 
+		"[Static  Post] " ^ string_of_spec (snd (List.hd decl.proc_static_specs)) ^"\n"^ 
+    "[Dynamic Pre ] " ^ string_of_spec (fst (List.hd decl.proc_dynamic_specs)) ^"\n"^ 
+		"[Dynamic Post] " ^ string_of_spec (snd (List.hd decl.proc_dynamic_specs)) ^"\n"^ 
+		"[Reason  Post] " ^ string_of_spec final  ^"\n"^
+		"[Reason  Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
 		)
 
 	;;
@@ -491,9 +493,9 @@ let () =
   let r = List.map parse_file_full source_files in
 	let r1 = List.hd r in 
   let _ = Iast.build_hierarchy r1 in
-  let res = Iast.sub_type (Named "Cnt") (Named "FastCnt") in
+  let res = Iast.sub_type (Named "FastCnt") (Named "Cnt") in
   let _ = print_string (Bool.to_string res) in
-  let _ = List.map print_string (List.map Iprinter.string_of_program r) in 
+  (*let _ = List.map print_string (List.map Iprinter.string_of_program r) in *)
 	let _ = List.map (fun a -> oop_verification a) r in 
 	(* Tpdispatcher.print_stats (); *)
 	()

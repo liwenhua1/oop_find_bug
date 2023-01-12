@@ -8,6 +8,9 @@ open Lexing
 module F = Iformula
 module P = Ipure
 
+exception Foo of string
+
+
 (* function to enclose a string s into parenthesis *)
 let parenthesis s = "(" ^ s ^ ")"
 ;;
@@ -216,12 +219,45 @@ let rec string_of_h_formula = function
   | F.HTrue                         -> ""                                                                                                (* ?? is it ok ? *)
   | F.HFalse                        -> "false"
 ;;
+let rec getTail (li: 'a list) : 'a = 
+  match li with 
+  | [] -> raise (Foo "getTail")
+  | [x] -> x
+  | x :: xs -> getTail xs 
+
+let normalise_h_formula_heap_content (li:(ident * ((ident * P.exp) list)) list) : (ident * ((ident * P.exp) list)) list=
+  match li with 
+  | [] -> []
+  | [x] -> li 
+  | _ -> 
+    let (tail:(ident * ((ident * P.exp) list))) = getTail li in 
+    let id = fst tail in 
+    let temp = List.fold_left (fun acc a -> if String.compare (fst a) id == 0 then acc else 
+    List.append acc (snd a)) [] li  in
+    [(id, List.append temp (snd tail))]
+
+
+
  
+let normalise_formula_base_heap (hf:F.h_formula) : F.h_formula = 
+  match hf with
+  | Heapdynamic ({F.h_formula_heap_node = hfhn;
+                  F.h_formula_heap_content = hfhc;
+                  F.h_formula_heap_pos = l 
+                }) -> 
+      let hfhc = normalise_h_formula_heap_content hfhc in 
+      (Heapdynamic {F.h_formula_heap_node = hfhn;
+                  F.h_formula_heap_content = hfhc;
+                  F.h_formula_heap_pos = l 
+                })
+  | _ -> hf 
+
 (* pretty printing for formulae *) 
 let rec string_of_formula = function 
   | Iast.F.Base ({F.formula_base_heap = hf;
 				  F.formula_base_pure = pf;
 				  F.formula_base_pos = l}) ->  
+    let hf = normalise_formula_base_heap hf in 
 	  if hf = F.HTrue then 
 		string_of_pure_formula pf
       else if hf = F.HFalse then 
@@ -234,7 +270,7 @@ let rec string_of_formula = function
             else "(" ^ (string_of_h_formula hf) ^ ")*(" ^ (string_of_pure_formula pf) ^ ")")
   | Iast.F.Or ({F.formula_or_f1 = f1;
 				F.formula_or_f2 = f2;
-				F.formula_or_pos = l}) -> (string_of_formula f1) ^ "\nor " ^ (string_of_formula f2)
+				F.formula_or_pos = l}) -> (string_of_formula f1) ^ " or " ^ (string_of_formula f2)
 	  (*  | Iast.F.Exists (x, f, l)                -> "ex " ^ (match x with 
 		  | (id, p) -> match p with 
 		  | Primed    -> id ^ "'"
