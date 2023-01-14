@@ -25,3 +25,5 @@ this::Cnt<w,v>FastCnt<w>
 this::Cnt<w,v,p>*p::FastCnt<w>
 
 git config --global http.version HTTP/1.1
+
+add figures 6 and 7 
