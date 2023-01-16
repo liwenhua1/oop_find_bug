@@ -1,0 +1,7 @@
+ocamlc -o sleek sleek.ml
+
+ocaml askSleek.ml
+
+
+rm *.cmi
+rm *.cmo
