@@ -63,7 +63,24 @@ let kind_of_Exp exp : string =
   | While _ -> "While"
   | Instance _ -> "Instance"
 
+  let remove_ok_err spec =
+    match spec with
+    |Ok a-> a
+    |Err a -> a
+let retriveheap (spec:Iast.F.formula) = match spec with 
+  | Iast.F.Base {formula_base_heap} -> formula_base_heap
+  | _ -> raise (Foo ( "other F formula 1 "))
+;;
 
+let retrivepure (spec:Iast.F.formula) = match spec with 
+  | Iast.F.Base {formula_base_pure} -> formula_base_pure
+  | _ -> raise (Foo ( "other F formula "))
+;;
+
+let retrivepo (spec:Iast.F.formula) = match spec with 
+  | Iast.F.Base {formula_base_pos} -> formula_base_pos
+  | _ -> raise (Foo ( "other F formula "))
+;;
 (* let lookup_Field_In_Object obj (field:ident) : int = 
   let ctx = obj.data_fields in 
   let rec helper li (acc:int) = 
@@ -93,6 +110,41 @@ let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp =
 
   | _ -> raise (Foo "retriveValueFromCurrent")
   ;; *)
+let write_content s = 
+    List.fold_right (fun (r1,r2) res -> "int "^r1^";"^" "^res) s ""
+
+let rec write_field s = 
+  match s with
+  | [] -> ""
+  | a::[] -> "data " ^ (fst a) ^" {" ^ write_content (snd a) ^ "}." ^ write_field ([])
+  | a::b::xs -> "data " ^ (fst a) ^" {" ^ write_content (snd a)  ^ (fst b) ^ " next;}." ^"\n"^ write_field (b::xs)
+
+let rec find_data heap = 
+  match heap with
+  | Iformula.Star a -> (find_data a.h_formula_star_h1) ^ (find_data a.h_formula_star_h2)
+  | Iformula.Heapdynamic b -> write_field b.h_formula_heap_content 
+  | _ -> raise (Foo "not supported : sleek")
+
+let type_restriction spec t = 
+  let (r1,r2) = List.fold_right (fun (a,b) (x,y) -> if x == false then (if (String.compare a t == 0) then (true, y @ b) else (false, y @ b)) else (x,y)) (List.rev spec) (false, []) in
+  let rec process s r = match s with
+                      |x::xs -> if (String.compare (fst x) t == 0) then ((fst x, r) :: xs) else process xs r 
+                      |[] -> raise (Foo "not matched") in
+  process spec r2
+
+let data_message s1 = let r = retriveheap s1 in
+   find_data r
+ 
+let write_sleek_file name spec1 spec2= 
+  let file = name in
+  let header = data_message spec1 in 
+  let content = header ^"\n"^"checkentail "^string_of_formula spec1 ^" |- "^ string_of_formula spec2 ^ "\n" ^ "print residue." in
+  let oc = open_out file in
+  (* create or truncate file, return channel *)
+  Printf.fprintf oc "%s\n" content;
+  (* write something *)
+  close_out oc;
+;;
 
   let rec retriveContentfromNode (spec:Iast.F.h_formula) name = 
     match spec with 
@@ -130,14 +182,14 @@ let rec retriveContentfromPure (spec:formula) name =
 let up_down_cast spec type_to_ckeck = 
       match type_to_ckeck with 
        | Named a -> List.fold_right (fun (x,y) rs -> if Iast.sub_type (Named x) (Named a) then (rs && true) else false) spec true
-       | _ -> raise (Foo "writeToCurrentSpec mismatched filed")
+       | _ -> raise (Foo "writeToCurrentSpec mismatched field")
       ;;
 
 let update_pure (spec:Iast.F.formula) (formu:Ipure.formula) po=
   match spec with
    | Base { formula_base_heap = h; formula_base_pure = p; formula_base_pos = po } -> let new_p = Ipure.And (p, formu, po)  in
      Iast.F.Base {formula_base_heap = h; formula_base_pure = new_p; formula_base_pos = po }
-   | _ -> raise (Foo "writeToCurrentSpec mismatched filed")
+   | _ -> raise (Foo "writeToCurrentSpec mismatched field")
    ;;
 
 let retrive_content_from_list node feild = 
@@ -151,17 +203,30 @@ let rec update_heap (spec:Iast.F.h_formula) var f value =
      | Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = c; h_formula_heap_pos = po } -> 
         if (String.compare (fst n) var == 0) then 
           let res = List.fold_right (fun (a,b) acc -> acc @ [(a, update_content_list b f value)]) c [] in
-          Iast.F.Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = res; h_formula_heap_pos = po }
+          Iast.F.Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = (List.rev res); h_formula_heap_pos = po }
         else spec
      | Star {h_formula_star_h1 = h1; h_formula_star_h2 = h2; h_formula_star_pos=po} -> 
        Iast.F.Star {h_formula_star_h1 = update_heap h1 var f value; h_formula_star_h2 = update_heap h2 var f value; h_formula_star_pos=po}
      | _ -> raise (Foo "retriveValueFromCurrent")
     ;;
-
+let update_node_content spec node_name content=
+  let rec replace heap n c = 
+    match heap with
+    | Iformula.Heapdynamic a -> if (String.compare (fst a.h_formula_heap_node) n == 0) then Iformula.Heapdynamic {h_formula_heap_node = a.h_formula_heap_node ; h_formula_heap_content = c; h_formula_heap_pos = a.h_formula_heap_pos} else Iformula.Heapdynamic a
+    | Star {h_formula_star_h1 = h1; h_formula_star_h2 = h2; h_formula_star_pos=po} -> 
+      Iast.F.Star {h_formula_star_h1 = replace h1 n c ; h_formula_star_h2 = replace h2 n c; h_formula_star_pos=po}
+    | _ -> raise (Foo "not210") in
+  match spec with 
+  |Ok a -> let h = retriveheap a in Ok (Base { formula_base_heap = replace h node_name content;
+  formula_base_pure = retrivepure a;
+  formula_base_pos = retrivepo a})
+  |Err a -> let h = retriveheap a in Err (Base { formula_base_heap = replace h node_name content;
+  formula_base_pure = retrivepure a;
+  formula_base_pos = retrivepo a})
 (*let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.formula = 
   match spec with 
   | Iast.F.Base {formula_base_heap; formula_base_pure; formula_base_pos} -> 
-    (match formula_base_heap with
+    (match formula_base_heap withprint residue.
     | Heapdynamic {h_formula_heap_node; h_formula_heap_content; h_formula_heap_pos } -> 
 
       let rec helper (li:(P.exp list)) acc :(P.exp list) = 
@@ -210,15 +275,7 @@ let retriveStack exp_var_name : P.exp =
   in helper temp 
 ;; *)
 
-let retriveheap (spec:Iast.F.formula) = match spec with 
-    | Iast.F.Base {formula_base_heap; _ } -> formula_base_heap
-    | _ -> raise (Foo ( "other F formula "))
-;;
 
-let retrivepure (spec:Iast.F.formula) = match spec with 
-    | Iast.F.Base {formula_base_pure} -> formula_base_pure
-    | _ -> raise (Foo ( "other F formula "))
-;;
 
 let null_test spec var_name = 
   let (r1,r2) = retriveContentfromNode (retriveheap spec) var_name in
@@ -228,10 +285,21 @@ let null_test spec var_name =
   else false 
 ;;
 
+let entail_checking name sp1 sp2 = match sp1 with
+  |Ok a -> (match sp2 with 
+           | Ok b -> write_sleek_file name a b
+           | Err b -> print_string "entailment failed")
+  |Err a -> (match sp2 with 
+           | Err b -> write_sleek_file name a b
+           | Ok b -> print_string "entailment failed")
+
 let rec oop_verification_method_aux obj decl expr (current:specs) : specs = 
+
 match current with 
 | Err a -> Err a
 | Ok current' -> 
+
+  (* let (r1,r2) = retriveContentfromNode (retriveheap current') "this" in let z = type_restriction r2 "FastCnt" in let () = print_string ((string_of_dynamic_content z)^"end") in *)
 
 	(match expr with
   
@@ -304,9 +372,9 @@ match current with
              else (match a with 
              | Var {exp_var_name = v3; exp_var_pos = po } -> let (r1,r2) = retriveContentfromPure (retrivepure current') v3 in
                if r1 == true then let res = update_heap (retriveheap current') v2 (List.hd f) r2 in
-                  (Ok (Iformula.Base {formula_base_heap = res;
+                  let result = (Iformula.Base {formula_base_heap = res;
                   formula_base_pure = retrivepure current';
-                  formula_base_pos= po }))
+                  formula_base_pos= po }) in (Ok result)
                else let (r1,r2) = retriveContentfromNode (retriveheap current') v3 in
                  if r1 == true then 
                   let value = Ipure.Var ((v3, Unprimed), po) in 
@@ -449,6 +517,15 @@ match current with
 
 	;;
 
+let subsumption_check_single_method s1 s2 d1 d2 = 
+  let this_type = (fst (List.hd (snd (retriveContentfromNode (retriveheap (remove_ok_err s1)) "this" )))) in
+  let normal_dynamic = update_node_content d1 "this" (type_restriction (snd (retriveContentfromNode (retriveheap (remove_ok_err d1)) "this")) this_type) in
+  let () = entail_checking "pre_check.slk" s1 normal_dynamic in
+  let this_type1 = (fst (List.hd (snd (retriveContentfromNode (retriveheap (remove_ok_err s2)) "this" )))) in
+  let normal_dynamic2 = update_node_content d2 "this" (type_restriction (snd (retriveContentfromNode (retriveheap (remove_ok_err d2)) "this")) this_type1) in
+  entail_checking "post_check.slk" normal_dynamic2 s2
+
+
 let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
 	match decl.proc_body with 
 	| None -> raise (Foo "oop_verification_method not yet")
@@ -456,14 +533,19 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
 		let initalState = (fst(List.hd (decl.proc_static_specs))) in 
 		let startTimeStamp = Unix.time() in
 		let final = oop_verification_method_aux obj decl exp initalState in
+    let static_pre = (fst (List.hd decl.proc_static_specs)) in
+    let static_post = (snd (List.hd decl.proc_static_specs)) in
+    let dynamic_pre = (fst (List.hd decl.proc_dynamic_specs)) in
+    let dynamic_post = (snd (List.hd decl.proc_dynamic_specs)) in
+    let () = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
 		let startTimeStamp01 = Unix.time() in 
 		("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n" ^
-		"[Static  Pre ] " ^ string_of_spec (fst (List.hd decl.proc_static_specs)) ^"\n"^ 
-		"[Static  Post] " ^ string_of_spec (snd (List.hd decl.proc_static_specs)) ^"\n"^ 
-    "[Dynamic Pre ] " ^ string_of_spec (fst (List.hd decl.proc_dynamic_specs)) ^"\n"^ 
-		"[Dynamic Post] " ^ string_of_spec (snd (List.hd decl.proc_dynamic_specs)) ^"\n"^ 
-		"[Reason  Post] " ^ string_of_spec final  ^"\n"^
-		"[Reason  Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
+		"[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 
+		"[Static  Post] " ^ string_of_spec  static_post^"\n"^ 
+    "[Dynamic Pre ] " ^ string_of_spec dynamic_pre ^"\n"^ 
+		"[Dynamic Post] " ^ string_of_spec  dynamic_post^"\n"^ 
+		"[Post  state ] " ^ string_of_spec final  ^"\n"^
+		"[Running Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
 		)
 
 	;;
@@ -493,8 +575,8 @@ let () =
   let r = List.map parse_file_full source_files in
 	let r1 = List.hd r in 
   let _ = Iast.build_hierarchy r1 in
-  let res = Iast.sub_type (Named "FastCnt") (Named "Cnt") in
-  let _ = print_string (Bool.to_string res) in
+  (* let res = Iast.sub_type (Named "FastCnt") (Named "Cnt") in
+  let _ = print_string (Bool.to_string res) in *)
   (*let _ = List.map print_string (List.map Iprinter.string_of_program r) in *)
 	let _ = List.map (fun a -> oop_verification a) r in 
 	(* Tpdispatcher.print_stats (); *)

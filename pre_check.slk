@@ -1,0 +1,3 @@
+data FastCnt {int val; int bak; }.
+checkentail this::FastCnt<v, w> & true |- this::FastCnt<v, w> & true
+print residue.

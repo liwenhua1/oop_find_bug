@@ -128,9 +128,15 @@ let rec string_of_formula_exp_list_with_name l = match l with
   | (a,b)::[]                      -> a ^ ":" ^string_of_formula_exp b
   | (a,b)::t                       -> (a ^ ":" ^string_of_formula_exp b) ^ ", " ^ (string_of_formula_exp_list_with_name t)
 ;;
+
+let rec string_of_formula_exp_list_without_name l = match l with 
+  | []                         -> ""
+  | (a,b)::[]                      -> string_of_formula_exp b
+  | (a,b)::t                       -> (string_of_formula_exp b) ^ ", " ^ (string_of_formula_exp_list_without_name t)
+;;
 (* pretty printing for boolean constraints *)
 let string_of_b_formula = function 
-  | P.BConst (b,l)              -> if b <> true then string_of_bool b else ""
+  | P.BConst (b,l)              -> if b <> true then string_of_bool b else "true"
   | P.BVar (x, l)               -> (match x with 
     |(id, p) -> id ^ (match p with 
       | Primed    -> "'" 
@@ -185,7 +191,7 @@ let is_bool_f = function
   | _                  -> false 
 ;;
 
-let string_of_dynamic_content a_list= List.fold_right (fun (a,b) rs -> a ^ "<" ^ (string_of_formula_exp_list_with_name b) ^ ">" ^ rs) a_list ""
+let string_of_dynamic_content a_list= List.fold_right (fun (a,b) rs -> a ^ "<" ^ (string_of_formula_exp_list_without_name b) ^ ">" ^ rs) a_list ""
 (* pretty printing for a heap formula *)
 let rec string_of_h_formula = function 
   | F.Star ({F.h_formula_star_h1 = f1;
@@ -257,17 +263,17 @@ let rec string_of_formula = function
   | Iast.F.Base ({F.formula_base_heap = hf;
 				  F.formula_base_pure = pf;
 				  F.formula_base_pos = l}) ->  
-    let hf = normalise_formula_base_heap hf in 
+    (* let hf = normalise_formula_base_heap hf in  *)
 	  if hf = F.HTrue then 
 		string_of_pure_formula pf
       else if hf = F.HFalse then 
 		let s = string_of_pure_formula pf in 
           (if s = "" then  (string_of_h_formula hf)
-            else (string_of_h_formula hf) ^ "*(" ^ (string_of_pure_formula pf) ^ ")")
+            else (string_of_h_formula hf) ^ " & " ^ (string_of_pure_formula pf) )
 	  else 
 		let s = string_of_pure_formula pf in 
           (if s = "" then  (string_of_h_formula hf)
-            else "(" ^ (string_of_h_formula hf) ^ ")*(" ^ (string_of_pure_formula pf) ^ ")")
+            else  (string_of_h_formula hf) ^ " & " ^ (string_of_pure_formula pf) )
   | Iast.F.Or ({F.formula_or_f1 = f1;
 				F.formula_or_f2 = f2;
 				F.formula_or_pos = l}) -> (string_of_formula f1) ^ " or " ^ (string_of_formula f2)

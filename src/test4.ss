@@ -5,6 +5,8 @@ class Cnt {
 	void test1()
 		static
 			presumes this::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		int temp = this.val;
 		int temp1 = temp + 1;
@@ -20,6 +22,8 @@ class Cnt {
 	void test2()
 		static
 			presumes x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		x.val = 1;
 		
@@ -28,6 +32,8 @@ class Cnt {
 	void instanceof1()
 		static
 			presumes x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = x instanceof FastCnt;
 		
@@ -35,6 +41,8 @@ class Cnt {
 	void instanceof2()
 		static
 			presumes x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = x instanceof Cnt;
 		
@@ -42,6 +50,8 @@ class Cnt {
     void instanceof3()
 		static
 			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = x instanceof FastCnt;
 		
@@ -49,6 +59,8 @@ class Cnt {
 	 void instanceof4()
 		static
 			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n> achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = x instanceof Cnt;
 		
@@ -57,6 +69,8 @@ class Cnt {
 	void normal_cast()
 		static
 			presumes x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = (Cnt) x;
 		
@@ -65,6 +79,8 @@ class Cnt {
 	void cast_error1()
 		static
 			presumes x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = (FastCnt) x;
 		
@@ -72,6 +88,8 @@ class Cnt {
 	void cast_error2()
 		static
 			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = (FastCnt) x;
 		
@@ -80,6 +98,8 @@ class Cnt {
 	void load_error()
 		static
 			presumes this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = null  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		y = x.val;
 		
@@ -88,6 +108,8 @@ class Cnt {
 	void write_error()
 		static
 			presumes this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = null  achieves this::Cnt<val:v+1>;
+		dynamic
+			presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
 	{
 		x.val = this.val;
 		
