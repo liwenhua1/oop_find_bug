@@ -3,12 +3,9 @@ ERROR : fixcalc cannot be found!!
 !!! **src/tpdispatcher.ml#492:init_tp by default: 
 !!! **src/tpdispatcher.ml#391:set_tp z3Starting z3... 
 
-!!! **WARNING****src/sleek.ml#494:[/usr/local/bin/prelude.slk,post_check.slk]
+!!! **WARNING****src/sleek.ml#494:[/usr/local/bin/prelude.slk,post_dynamic_check.slk]
 ERROR: at _0:0_0:0
 Message: v is undefined (7)
-
-ERROR: at _0:0_0:0
-Message: w is undefined (7)
 
 Entail 1: Valid. 
 
@@ -21,20 +18,20 @@ Starting Omega.../usr/local/bin/oc
 
 
 
-Stop z3... 5 invocations 
+Stop z3... 4 invocations 
 Stop Omega... 2 invocations 
 SAT Count   : 2
 SAT % Hit   : 0.%
-IMPLY Count : 3
+IMPLY Count : 2
 IMPLY % Hit : 0.%
-Time(cache overhead) : 0.00051 (seconds)
+Time(cache overhead) : 0.000339 (seconds)
 
 0 false contexts at: ()
 
-!!! log(small):(0.006388,8)
+!!! log(small):(0.006151,7)
 !!! 
- log(bigger)(>4s)(1):(5.,[(simplify:6<1:Z3,5.)])
-Total verification time: 0.063764 second(s)
-	Time spent in main process: 0.04388 second(s)
-	Time spent in child processes: 0.019884 second(s)
+ log(bigger)(>4s)(1):(5.,[(simplify:5<1:Z3,5.)])
+Total verification time: 0.062524 second(s)
+	Time spent in main process: 0.041872 second(s)
+	Time spent in child processes: 0.020652 second(s)
 

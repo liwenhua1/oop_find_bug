@@ -245,7 +245,7 @@ let normalise_h_formula_heap_content (li:(ident * ((ident * P.exp) list)) list) 
 
 
  
-let normalise_formula_base_heap (hf:F.h_formula) : F.h_formula = 
+let rec normalise_formula_base_heap (hf:F.h_formula) : F.h_formula = 
   match hf with
   | Heapdynamic ({F.h_formula_heap_node = hfhn;
                   F.h_formula_heap_content = hfhc;
@@ -256,7 +256,10 @@ let normalise_formula_base_heap (hf:F.h_formula) : F.h_formula =
                   F.h_formula_heap_content = hfhc;
                   F.h_formula_heap_pos = l 
                 })
-  | _ -> hf 
+  | Star a -> Star ({h_formula_star_h1 = normalise_formula_base_heap a.h_formula_star_h1;
+                     h_formula_star_h2 = normalise_formula_base_heap a.h_formula_star_h2;
+                     h_formula_star_pos = a.h_formula_star_pos})
+  | _ ->  raise (Foo "other F")
 
 (* pretty printing for formulae *) 
 let rec string_of_formula = function 
@@ -472,7 +475,7 @@ let string_of_proc_decl p =
 	| None     -> ""
 	| Some e   -> "{\n" ^ (string_of_exp e) ^ "\n}" 
   in	
-    (if p.proc_constructor then "" else (string_of_typ p.proc_return) ^ " ")
+    (if p.proc_constructor then "" else p.proc_type ^(string_of_typ p.proc_return) ^ " ")
 	^ p.proc_name ^ "(" ^ (string_of_param_list p.proc_args) ^ ")\n" 
 	^ ( "static " ^ (string_of_form_list p.proc_static_specs)
 		^ "\ndynamic " ^ (string_of_form_list p.proc_dynamic_specs) ^ "\n" 

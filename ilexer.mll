@@ -84,6 +84,9 @@
 	 ("union", UNION);
 	 ("view", VIEW);
 	 ("void", VOID);
+	 ("inherit", INHERIT);
+     ("virtual", VIRTUAL);
+     ("override", OVERRIDE);
 	 ("where", WHERE);
 	 ("while", WHILE)]
 }

@@ -15,7 +15,14 @@ exception Foo of string
 (******************************************)
 (* main function                          *)
 (******************************************)
-
+let verified_method = ref ([]: (ident*ident*(Iast.specs*Iast.specs)*(Iast.specs*Iast.specs)) list)
+let print_verified_method = 
+  let helper list =
+    match list with
+    | [] -> print_string ""
+    | x :: xs -> let (a,b,c,d) = x in 
+                   print_string (a^" "^" "^b^" "^ string_of_spec (fst c) ^string_of_spec (snd c)^ string_of_spec (fst d) ^string_of_spec (snd d)^"\n") in
+    helper !verified_method;;
 let parse_file_full file_name : Iast.prog_decl = 
   let org_in_chnl = open_in file_name in
   let input = Lexing.from_channel org_in_chnl in
@@ -531,6 +538,53 @@ let subsumption_check_single_method s1 s2 d1 d2 =
   let res1 = Asksleek.entail_res content1 in
   let () = if (res1 == true) then print_string "postcondition entailment valid\n" else print_string "postcondition entailment fail\n" in
   res && res1
+;;
+
+let subsumption_check_dynamic_method s1 s2 d1 d2 = 
+  let () = entail_checking "pre_dynamic_check.slk" s1 d1 in
+  let content = Asksleek.asksleek "pre_dynamic_check.slk" in
+  let res = Asksleek.entail_res content in
+  let () = if (res == true) then print_string "dynamic precondition entailment valid \n" else print_string "dynamic precondition entailment fail\n" in
+  entail_checking "post_dynamic_check.slk" d2 s2;
+  let content1 = Asksleek.asksleek "post_dynamic_check.slk" in
+  let res1 = Asksleek.entail_res content1 in
+  let () = if (res1 == true) then print_string "dynamic postcondition entailment valid\n" else print_string "dynamic postcondition entailment fail\n" in
+  (res && res1)
+;;
+
+let retrive_parent_dynamic_spec pclas proc = 
+  let rec helper list = match list with
+  | [] -> raise (Foo ("method in parent class is not verified"))
+  | (a,b,c,d)::xs -> if ((String.compare a pclas == 0) && (String.compare b proc == 0)) then d else helper xs in
+   helper !verified_method;;
+  
+
+let singlised_heap spec =
+  let heap = retriveheap (remove_ok_err spec) in 
+  let pure = retrivepure (remove_ok_err spec) in 
+  let po = retrivepo (remove_ok_err spec) in 
+  match spec with
+  | Ok a -> Ok (Iformula.Base {formula_base_heap=Iprinter.normalise_formula_base_heap heap;
+                               formula_base_pure = pure;
+                               formula_base_pos = po})
+  | Err a -> Err (Iformula.Base {formula_base_heap=Iprinter.normalise_formula_base_heap heap;
+                               formula_base_pure = pure;
+                               formula_base_pos = po})
+
+let entail_for_dynamic s1 s2 d1 d2 self parent_class proc_name = 
+  let not_in s slist = List.fold_right (fun a acc -> if (String.compare s a == 1) then acc && true else acc && false) slist true in
+  let (pd1,pd2) = retrive_parent_dynamic_spec parent_class proc_name in
+  let node = snd (retriveContentfromNode (retriveheap (remove_ok_err pd1)) "this") in
+  let type_info = List.fold_right (fun (a,b) acc -> a :: acc) node [] in
+  let node1 = snd (retriveContentfromNode (retriveheap (remove_ok_err d1)) "this") in
+  let new_node = List.fold_right (fun (a,b) acc -> if (not_in a type_info) then acc else (a,b) :: acc) node1 [] in
+  let new_d1 = update_node_content d1 "this" new_node in 
+  let node2 = snd (retriveContentfromNode (retriveheap (remove_ok_err d2)) "this") in
+  let new_node2 = List.fold_right (fun (a,b) acc -> if (not_in a type_info) then acc else (a,b) :: acc) node2 [] in
+  let new_d2 = update_node_content d1 "this" new_node2 in 
+  let res =subsumption_check_dynamic_method (singlised_heap pd1) (singlised_heap pd2) (singlised_heap new_d1) (singlised_heap new_d2) in
+  if (res == true) then (verified_method := (self,proc_name,(s1,s2),(d1,d2)):: !verified_method) ;;
+ 
 
 
 let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
@@ -545,7 +599,9 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
     let dynamic_pre = (fst (List.hd decl.proc_dynamic_specs)) in
     let dynamic_post = (snd (List.hd decl.proc_dynamic_specs)) in
     let () = print_string ("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
-    let entail_res = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
+    let entail_for_static = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
+    if (String.compare (decl.proc_type) "virtual" == 0) then (if (entail_for_static == true) then (verified_method := (obj.data_name,decl.proc_name,(static_pre,static_post),(dynamic_pre,dynamic_post)):: !verified_method))
+    else entail_for_dynamic static_pre static_post dynamic_pre dynamic_post obj.data_name obj.data_parent_name decl.proc_name;
 		let startTimeStamp01 = Unix.time() in 
 		(
 		"[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 
@@ -558,6 +614,7 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
 
 	;;
 
+  
 let oop_verification_object (decl: Iast.data_decl) = 
 	let rec helper li = 
 		match li with 
@@ -571,11 +628,14 @@ let oop_verification_object (decl: Iast.data_decl) =
 
 let oop_verification (decl:Iast.prog_decl) = 
 	print_string ("Verifying... \n");
-	List.map (fun a -> oop_verification_object a) decl.prog_data_decls 
+	 List.map (fun a -> oop_verification_object a) decl.prog_data_decls 
+
 ;;
 	
 
 
+
+  
 	  
 let () = 
   let inputfile = (Sys.getcwd () ^ "/" ^ Sys.argv.(1)) in
@@ -587,8 +647,10 @@ let () =
   let _ = print_string (Bool.to_string res) in *)
   (*let _ = List.map print_string (List.map Iprinter.string_of_program r) in *)
 	let _ = List.map (fun a -> oop_verification a) r in 
+  
+  ()
 	(* Tpdispatcher.print_stats (); *)
-	()
+	
 	
 	  
 

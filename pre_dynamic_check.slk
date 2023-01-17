@@ -1,0 +1,3 @@
+data Cnt {int val; }.
+checkentail this::Cnt<v> & true |- this::Cnt<v> & true.
+print residue.

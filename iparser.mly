@@ -235,6 +235,10 @@ let rec process_heap_node ide fields position=
 %token WHILE
 %token PRESUMES
 %token ACHIEVES
+%token INHERIT
+%token VIRTUAL 
+%token OVERRIDE 
+
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -899,26 +903,28 @@ proc_decl
 ;
   
 proc_header
-  : typ IDENTIFIER OPAREN opt_formal_parameter_list CPAREN opt_pre_post_list {
-	  let static_specs, dynamic_specs = split_specs $6 in
-		{ proc_name = $2;
+  : p_type typ IDENTIFIER OPAREN opt_formal_parameter_list CPAREN opt_pre_post_list {
+	  let static_specs, dynamic_specs = split_specs $7 in
+		{ proc_type = $1;
+		  proc_name = $3;
 		  proc_mingled_name = ""; (* mingle_name $2 (List.map (fun p -> p.param_type) $4); *)
 		  proc_data_decl = None;
 		  proc_constructor = false;
-		  proc_args = $4;
-		  proc_return = $1;
+		  proc_args = $5;
+		  proc_return = $2;
 		  proc_static_specs = static_specs;
 		  proc_dynamic_specs = dynamic_specs;
 		  proc_loc = get_pos 1;
 		  proc_body = None }
 	}
-  | VOID IDENTIFIER OPAREN opt_formal_parameter_list CPAREN opt_pre_post_list {
-		let static_specs, dynamic_specs = split_specs $6 in
-		  { proc_name = $2;
+  | p_type VOID IDENTIFIER OPAREN opt_formal_parameter_list CPAREN opt_pre_post_list {
+		let static_specs, dynamic_specs = split_specs $7 in
+		  { proc_type = $1;
+			proc_name = $3;
 			proc_mingled_name = ""; (* mingle_name $2 (List.map (fun p -> p.param_type) $4); *)
 			proc_data_decl = None;
 			proc_constructor = false;
-			proc_args = $4;
+			proc_args = $5;
 			proc_return = void_type;
 			proc_static_specs = static_specs;
 			proc_dynamic_specs = dynamic_specs;
@@ -926,6 +932,10 @@ proc_header
 			proc_body = None }
   }
 ;
+p_type
+  : INHERIT {"inherit"}
+  | VIRTUAL {"virtual"}
+  | OVERRIDE {"override"}
 
 constructor_decl
   : constructor_header proc_body {
@@ -938,7 +948,8 @@ constructor_header
   : IDENTIFIER OPAREN opt_formal_parameter_list CPAREN opt_pre_post_list {
 	  let static_specs, dynamic_specs= split_specs $5 in
 		if Util.empty dynamic_specs then
-		  { proc_name = $1;
+		  { proc_type = "constructor";
+			proc_name = $1;
 			proc_mingled_name = ""; (* mingle_name $2 (List.map (fun p -> p.param_type) $4); *)
 			proc_data_decl = None;
 			proc_constructor = true;

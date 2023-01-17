@@ -55,7 +55,9 @@ and specs =
   | Ok of F.formula
   | Err of F.formula
 
-and proc_decl = { proc_name : ident;
+and proc_decl = { 
+          proc_type : string;
+          proc_name : ident;
 				  mutable proc_mingled_name : ident;
 				  mutable proc_data_decl : data_decl option; (* the class containing the method *)
 				  proc_constructor : bool;
