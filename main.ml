@@ -7,7 +7,7 @@ open Ilexer
 open Globals
 open Iast
 open Ipure
-
+open Asksleek
 
 exception Foo of string
 
@@ -138,7 +138,7 @@ let data_message s1 = let r = retriveheap s1 in
 let write_sleek_file name spec1 spec2= 
   let file = name in
   let header = data_message spec1 in 
-  let content = header ^"\n"^"checkentail "^string_of_formula spec1 ^" |- "^ string_of_formula spec2 ^ "\n" ^ "print residue." in
+  let content = header ^"\n"^"checkentail "^string_of_formula spec1 ^" |- "^ string_of_formula spec2 ^"."^ "\n" ^ "print residue." in
   let oc = open_out file in
   (* create or truncate file, return channel *)
   Printf.fprintf oc "%s\n" content;
@@ -521,9 +521,16 @@ let subsumption_check_single_method s1 s2 d1 d2 =
   let this_type = (fst (List.hd (snd (retriveContentfromNode (retriveheap (remove_ok_err s1)) "this" )))) in
   let normal_dynamic = update_node_content d1 "this" (type_restriction (snd (retriveContentfromNode (retriveheap (remove_ok_err d1)) "this")) this_type) in
   let () = entail_checking "pre_check.slk" s1 normal_dynamic in
+  let content = Asksleek.asksleek "pre_check.slk" in
+  let res = Asksleek.entail_res content in
+  let () = if (res == true) then print_string "precondition entailment valid \n" else print_string "precondition entailment fail\n" in
   let this_type1 = (fst (List.hd (snd (retriveContentfromNode (retriveheap (remove_ok_err s2)) "this" )))) in
   let normal_dynamic2 = update_node_content d2 "this" (type_restriction (snd (retriveContentfromNode (retriveheap (remove_ok_err d2)) "this")) this_type1) in
-  entail_checking "post_check.slk" normal_dynamic2 s2
+  entail_checking "post_check.slk" normal_dynamic2 s2;
+  let content1 = Asksleek.asksleek "post_check.slk" in
+  let res1 = Asksleek.entail_res content1 in
+  let () = if (res1 == true) then print_string "postcondition entailment valid\n" else print_string "postcondition entailment fail\n" in
+  res && res1
 
 
 let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
@@ -537,9 +544,10 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
     let static_post = (snd (List.hd decl.proc_static_specs)) in
     let dynamic_pre = (fst (List.hd decl.proc_dynamic_specs)) in
     let dynamic_post = (snd (List.hd decl.proc_dynamic_specs)) in
-    let () = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
+    let () = print_string ("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
+    let entail_res = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
 		let startTimeStamp01 = Unix.time() in 
-		("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n" ^
+		(
 		"[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 
 		"[Static  Post] " ^ string_of_spec  static_post^"\n"^ 
     "[Dynamic Pre ] " ^ string_of_spec dynamic_pre ^"\n"^ 
