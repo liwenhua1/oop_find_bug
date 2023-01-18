@@ -1,3 +1,4 @@
 data FastCnt {int val; int bak; }.
+
 checkentail this::FastCnt<v+1, w+2> & true |- this::FastCnt<v+1, w+2> & true.
 print residue.

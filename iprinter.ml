@@ -199,9 +199,9 @@ let rec string_of_h_formula = function
 			 F.h_formula_star_pos = l} ) -> 
 	  if is_bool_f f1 then 
 		if is_bool_f f2 then (string_of_h_formula f1) ^ "*" ^ (string_of_h_formula f2)
-        else (string_of_h_formula f1) ^ "*(" ^ (string_of_h_formula f2) ^ ")" 
+        else (string_of_h_formula f1) ^ "*" ^ (string_of_h_formula f2) ^ "" 
 	  else
-		"(" ^ (string_of_h_formula f1) ^ ") * (" ^ (string_of_h_formula f2) ^ ")"    
+		"" ^ (string_of_h_formula f1) ^ " * " ^ (string_of_h_formula f2) ^ ""    
   | F.Heapdynamic ({h_formula_heap_node = x;
                  h_formula_heap_content = a_list;
                  h_formula_heap_pos = l }) -> (match x with 

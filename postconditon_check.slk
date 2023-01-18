@@ -1,0 +1,4 @@
+data FastCnt {int val; int bak; }.
+
+checkentail this::FastCnt<v+1, w+2> & true |- (exists temp3, temp2, temp1, temp: this::FastCnt<temp+1, temp2+2> & ((((true) & (temp = v)) & (temp1 = temp+1)) & (temp2 = w)) & (temp3 = temp2+2)).
+print residue.
