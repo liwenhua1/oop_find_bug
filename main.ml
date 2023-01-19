@@ -322,6 +322,8 @@ let null_test spec var_name =
   else false 
 ;;
 
+
+
 let entail_checking name sp1 sp2 = match sp1 with
   |Ok a -> (match sp2 with 
            | Ok b -> write_sleek_file name a b
@@ -355,15 +357,19 @@ match current with
           (Ok (update_pure current' form loc))
     | Some expRHS -> 
       (match expRHS with
-      | Member {exp_member_base; exp_member_fields; _ } -> 
-         let var1 = kind_of_Exp exp_member_base in
-         let var = if (String.compare var1 "This" == 0) then "this" else var1 in
-         let field = List.hd exp_member_fields in 
+      | Member {exp_member_base = ee; exp_member_fields; _ } -> 
+         let var = match ee with
+         | Var a -> a.exp_var_name
+         | This _-> "this"  
+         | _ -> raise (Foo ("Not a var")) in
+         let null_read = null_test current' var in
+         if null_read == true then let _ = print_string "NPE detected: null read " in (Err current') else
+         (let field = List.hd exp_member_fields in 
          let (r1,r2) = (retriveContentfromNode (retriveheap current') var) in
          if r1 == true then let value = retrive_content_from_list r2 field in
          let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), value, loc)) in
              (Ok (update_pure current' form loc))
-         else raise (Foo ("Var not in spec"))
+         else (raise (Foo ("Var not in spec"))))
         (* if String.compare (kind_of_Exp exp_member_base) "This" == 0 then 
           
           let index = lookup_Field_In_Object obj field in 
@@ -390,6 +396,30 @@ match current with
 
         | _ -> raise (Foo ("VarDecl-expRHS-Binary: " ^ kind_of_Exp exp_binary_oper1 ^ " " ^ kind_of_Exp exp_binary_oper2 ))
         )
+        |  Instance { exp_instance_var; exp_intance_type=t ;_ }-> (match current' with 
+          | Iast.F.Base {formula_base_heap; _ } -> ( match exp_instance_var with
+             | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
+              if r1 == true then let res = up_down_cast r2 t in 
+                 if res == true then let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), IConst (1, loc), loc)) in
+                    (Ok (update_pure current' form loc))
+                 else let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), IConst (0, loc), loc)) in
+                    (Ok (update_pure current' form loc))
+              else raise (Foo ("Variable " ^ v2 ^" not in spec"))
+          | _ -> raise (Foo ("not a var_exp for instanceof "))
+              )
+               
+        |_ -> raise (Foo ("Other heap formula: instanceof ")))
+       
+        | Cast { exp_cast_target_type ; exp_cast_body ; _ }-> 
+          (match exp_cast_body with
+          | Var { exp_var_name = v2 ;_ } -> (match current' with 
+            | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
+               if r1 == true then let res = up_down_cast r2 exp_cast_target_type in
+                   if res == true then let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Var ((v2 , Unprimed), loc), loc)) in
+                    (Ok (update_pure current' form loc)) else let _ = print_string "cast_error_detected " in (Err current')
+               else raise (Foo ("Variable " ^ v2 ^" not in spec"))
+            |_ -> raise (Foo ("Other heap formula: cast")))
+          | _ ->  raise (Foo (" not a var_exp for casting ")))
 
       | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
       )
@@ -513,7 +543,11 @@ match current with
          else (Err current')
        | _ -> raise (Foo ("Assign-Member-Var: "))
     |_ *)
-
+    | Cond a -> let sp = (match a.exp_cond_condition with
+              | Var b -> let form = Ipure.BForm (Eq (Var ((b.exp_var_name , Unprimed), b.exp_var_pos), IConst (1, b.exp_var_pos), b.exp_var_pos)) in
+                 Ok (update_pure current' form b.exp_var_pos)
+              |_ -> raise (Foo ("Condition needs to be Var"))
+              ) in oop_verification_method_aux obj decl a.exp_cond_then_arm sp 
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
 
@@ -682,7 +716,7 @@ let () =
   let r = List.map parse_file_full source_files in
 	let r1 = List.hd r in 
   let _ = Iast.build_hierarchy r1 in
-  (* let res = Iast.sub_type (Named "FastCnt") (Named "Cnt") in
+  (* let res = Iast.sub_type (Named "FastCnt1") (Named "Cnt1") in
   let _ = print_string (Bool.to_string res) in *)
   (*let _ = List.map print_string (List.map Iprinter.string_of_program r) in *)
 	let _ = List.map (fun a -> oop_verification a) r in 
