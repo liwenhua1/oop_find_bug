@@ -165,6 +165,9 @@ let type_restriction spec t =
                       |x::xs -> if (String.compare (fst x) t == 0) then ((fst x, r) :: xs) else process xs r 
                       |[] -> raise (Foo "not matched") in
   process spec r2
+
+
+
 let string_of_da alist= 
   List.fold_right (fun (a,b) acc -> acc^"data "^a^" {"^ write_content b^"}."^"\n") alist ""
 let data_message s1 s2= let r1 = retriveheap s1 in
@@ -215,11 +218,22 @@ let rec retriveContentfromPure (spec:formula) name =
        | _ ->  raise (Foo ( "other Pure formula "))
 
        ;;
-
-let up_down_cast spec type_to_ckeck = 
-      match type_to_ckeck with 
-       | Named a -> List.fold_right (fun (x,y) rs -> if Iast.sub_type (Named x) (Named a) then (rs && true) else false) spec true
-       | _ -> raise (Foo "writeToCurrentSpec mismatched field")
+let up_down_cast s t= 
+  let rec helper1 sp ty=
+     match sp with
+     | [] -> []
+     | (a,b)::xs -> if (not (Iast.sub_type (Named a) t)) then (a,b) :: (helper1 xs ty) else helper1 xs ty in
+  let res = helper1 s t in
+  let rec helper spec type_to_ckeck = 
+      match spec with
+      | [] -> []
+      | x::[] -> if Iast.sub_type (Named (fst x)) type_to_ckeck then [x] else []
+      | x::y::xs -> if Iast.sub_type (Named (fst x)) type_to_ckeck then x::xs else let spec = type_restriction (x::y::xs) (fst y) in 
+          helper spec type_to_ckeck in
+  let res2 = helper s t in (res2,res)
+       
+      (* List.fold_right (fun (x,y) rs -> if Iast.sub_type (Named x) type_to_ckeck then (rs && true) else false) spec true *)
+     
       ;;
 
 let update_pure (spec:Iast.F.formula) (formu:Ipure.formula) po=
@@ -400,8 +414,8 @@ match current with
           | Iast.F.Base {formula_base_heap; _ } -> ( match exp_instance_var with
              | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
               if r1 == true then let res = up_down_cast r2 t in 
-                 if res == true then let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), IConst (1, loc), loc)) in
-                    (Ok (update_pure current' form loc))
+                 if (List.length (fst res) > 0) then let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), IConst (1, loc), loc)) in
+                    update_node_content (Ok (update_pure current' form loc)) v2 (fst res)
                  else let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), IConst (0, loc), loc)) in
                     (Ok (update_pure current' form loc))
               else raise (Foo ("Variable " ^ v2 ^" not in spec"))
@@ -415,8 +429,9 @@ match current with
           | Var { exp_var_name = v2 ;_ } -> (match current' with 
             | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
                if r1 == true then let res = up_down_cast r2 exp_cast_target_type in
-                   if res == true then let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Var ((v2 , Unprimed), loc), loc)) in
-                    (Ok (update_pure current' form loc)) else let _ = print_string "cast_error_detected " in (Err current')
+                   if (List.length (snd res) > 0) then let _ = print_string "cast_error_detected " in (Err (remove_ok_err (update_node_content (Ok current') v2 (snd res))))
+                   else let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Var ((v2 , Unprimed), loc), loc)) in
+                    (Ok (update_pure current' form loc))  
                else raise (Foo ("Variable " ^ v2 ^" not in spec"))
             |_ -> raise (Foo ("Other heap formula: cast")))
           | _ ->  raise (Foo (" not a var_exp for casting ")))
@@ -508,7 +523,7 @@ match current with
         | _ -> raise (Foo ("Only support variables"))
           )
 
-      | (Var {exp_var_name = v1; exp_var_pos = po }, Cast { exp_cast_target_type ; exp_cast_body ; _ } )-> 
+      (* | (Var {exp_var_name = v1; exp_var_pos = po }, Cast { exp_cast_target_type ; exp_cast_body ; _ } )-> 
         (match exp_cast_body with
         | Var { exp_var_name = v2 ;_ } -> (match current' with 
           | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
@@ -517,8 +532,8 @@ match current with
                   (Ok (update_pure current' form po)) else let _ = print_string "cast_error_detected " in (Err current')
              else raise (Foo ("Variable " ^ v2 ^" not in spec"))
           |_ -> raise (Foo ("Other heap formula: cast")))
-        | _ ->  raise (Foo (" not a var_exp for casting ")))
-      | (Var { exp_var_name = v1 ; exp_var_pos = p }, Instance { exp_instance_var; exp_intance_type=t ;_ }) -> (match current' with 
+        | _ ->  raise (Foo (" not a var_exp for casting "))) *)
+      (* | (Var { exp_var_name = v1 ; exp_var_pos = p }, Instance { exp_instance_var; exp_intance_type=t ;_ }) -> (match current' with 
           | Iast.F.Base {formula_base_heap; _ } -> ( match exp_instance_var with
             | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
                 if r1 == true then let res = up_down_cast r2 t in 
@@ -530,7 +545,7 @@ match current with
             | _ -> raise (Foo ("not a var_exp for instanceof "))
                 )
                  
-          |_ -> raise (Foo ("Other heap formula: instanceof ")))
+          |_ -> raise (Foo ("Other heap formula: instanceof "))) *)
          
       
       | _ -> raise (Foo ("Assign: "^kind_of_Exp lhs ^ " " ^ kind_of_Exp rhs)) 
@@ -661,7 +676,7 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
 		let initalState = (fst(List.hd (decl.proc_static_specs))) in 
 		let startTimeStamp = Unix.time() in
 		let final = oop_verification_method_aux obj decl exp initalState in
-    let string_of_final = spec_with_ex final in
+    let string_of_final =if (List.length !temp_var == 0) then string_of_spec final else spec_with_ex final in
     let static_pre = (fst (List.hd decl.proc_static_specs)) in
     let static_post = (snd (List.hd decl.proc_static_specs)) in
     entail_checking "postconditon_check.slk" (singlised_heap static_post) (singlised_heap final);
@@ -676,7 +691,7 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
     if (String.compare (decl.proc_type) "virtual" == 0) then (if (res == true && entail_for_static == true) then (verified_method := (obj.data_name,decl.proc_name,(static_pre,static_post),(dynamic_pre,dynamic_post)):: !verified_method))
     else (if (res == true && entail_for_static == true) then entail_for_dynamic static_pre static_post dynamic_pre dynamic_post obj.data_name obj.data_parent_name decl.proc_name);
 		let startTimeStamp01 = Unix.time() in 
-		(
+		( 
 		"[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 
 		"[Static  Post] " ^ string_of_spec  static_post^"\n"^ 
     "[Dynamic Pre ] " ^ string_of_spec dynamic_pre ^"\n"^ 

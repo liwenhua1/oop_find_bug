@@ -3,35 +3,27 @@ ERROR : fixcalc cannot be found!!
 !!! **src/tpdispatcher.ml#492:init_tp by default: 
 !!! **src/tpdispatcher.ml#391:set_tp z3Starting z3... 
 
-!!! **WARNING****src/sleek.ml#494:[/usr/local/bin/prelude.slk,post_dynamic_check.slk]
-ERROR: at _0:0_0:0
-Message: v is undefined (7)
-
+!!! **WARNING****src/sleek.ml#494:[/usr/local/bin/prelude.slk,post_check.slk]
 Entail 1: Valid. 
 
 Residue:
 
-
-Starting Omega.../usr/local/bin/oc
- <1>emp&{FLOW,(20,21)=__norm#E}[]
-[[ SEARCH ==>  Match(this,this)]]
+ <1>emp&{FLOW,(4,5)=__norm#E}[]
+[[ SEARCH ==>  Match(this,this) ==>  SEARCH ==>  Match(other,other)]]
 
 
 
-Stop z3... 4 invocations 
-Stop Omega... 2 invocations 
-SAT Count   : 2
+Stop z3... 6 invocations 
+SAT Count   : 1
 SAT % Hit   : 0.%
-IMPLY Count : 2
-IMPLY % Hit : 0.%
-Time(cache overhead) : 0.000354 (seconds)
+IMPLY Count : 6
+IMPLY % Hit : 16.66%
+Time(cache overhead) : 0.000588 (seconds)
 
 0 false contexts at: ()
 
-!!! log(small):(0.006433,7)
-!!! 
- log(bigger)(>4s)(1):(5.,[(simplify:5<1:Z3,5.)])
-Total verification time: 0.059228 second(s)
-	Time spent in main process: 0.039261 second(s)
-	Time spent in child processes: 0.019967 second(s)
+!!! log(small):(0.008265,10)
+Total verification time: 0.046952 second(s)
+	Time spent in main process: 0.036686 second(s)
+	Time spent in child processes: 0.010266 second(s)
 
