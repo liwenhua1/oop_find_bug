@@ -377,7 +377,7 @@ match current with
          | This _-> "this"  
          | _ -> raise (Foo ("Not a var")) in
          let null_read = null_test current' var in
-         if null_read == true then let _ = print_string "NPE detected: null read " in (Err current') else
+         if null_read == true then let _ = print_string "NPE detected: null read \n" in (Err current') else
          (let field = List.hd exp_member_fields in 
          let (r1,r2) = (retriveContentfromNode (retriveheap current') var) in
          if r1 == true then let value = retrive_content_from_list r2 field in
@@ -410,7 +410,10 @@ match current with
 
         | _ -> raise (Foo ("VarDecl-expRHS-Binary: " ^ kind_of_Exp exp_binary_oper1 ^ " " ^ kind_of_Exp exp_binary_oper2 ))
         )
-        |  Instance { exp_instance_var; exp_intance_type=t ;_ }-> (match current' with 
+      | Var a -> let form = Ipure.BForm (Eq (Var ((id,Unprimed),loc), Var ((a.exp_var_name,Unprimed),loc),loc)) in
+           (Ok (update_pure current' form loc))
+
+      | Instance { exp_instance_var; exp_intance_type=t ;_ }-> (match current' with 
           | Iast.F.Base {formula_base_heap; _ } -> ( match exp_instance_var with
              | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
               if r1 == true then let res = up_down_cast r2 t in 
@@ -429,13 +432,13 @@ match current with
           | Var { exp_var_name = v2 ;_ } -> (match current' with 
             | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
                if r1 == true then let res = up_down_cast r2 exp_cast_target_type in
-                   if (List.length (snd res) > 0) then let _ = print_string "cast_error_detected " in (Err (remove_ok_err (update_node_content (Ok current') v2 (snd res))))
+                   if (List.length (snd res) > 0) then let _ = print_string "cast_error_detected \n" in (Err (remove_ok_err (update_node_content (Ok current') v2 (snd res))))
                    else let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Var ((v2 , Unprimed), loc), loc)) in
                     (Ok (update_pure current' form loc))  
                else raise (Foo ("Variable " ^ v2 ^" not in spec"))
             |_ -> raise (Foo ("Other heap formula: cast")))
           | _ ->  raise (Foo (" not a var_exp for casting ")))
-
+      
       | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
       )
     
@@ -451,7 +454,7 @@ match current with
       | (Member {exp_member_base=v1; exp_member_fields = f; _ }, a) ->
         (match v1 with
         | Var {exp_var_name = v2; _ } -> let null_write = null_test current' v2 in
-             if null_write == true then let _ = print_string "NPE detected: null write " in (Err current')
+             if null_write == true then let _ = print_string "NPE detected: null write \n" in (Err current')
              else (match a with 
              | Var {exp_var_name = v3; exp_var_pos = po } -> let (r1,r2) = retriveContentfromPure (retrivepure current') v3 in
                if r1 == true then let res = update_heap (retriveheap current') v2 (List.hd f) r2 in
@@ -502,7 +505,7 @@ match current with
       | (Var {exp_var_name = v1; _ }, Member {exp_member_base=v2; exp_member_fields; _ }) ->
         (match v2 with
         | Var {exp_var_name = v3; exp_var_pos = po } -> let null_read = null_test current' v3 in
-             if null_read == true then let _ = print_string "NPE detected: null read " in (Err current')
+             if null_read == true then let _ = print_string "NPE detected: null read \n" in (Err current')
              else raise (Foo ("Todo"))
               (* let (r1,r2) = retriveContentfromPure (retrivepure current') v3 in
                  if r1 == true then let value =  
@@ -563,6 +566,15 @@ match current with
                  Ok (update_pure current' form b.exp_var_pos)
               |_ -> raise (Foo ("Condition needs to be Var"))
               ) in oop_verification_method_aux obj decl a.exp_cond_then_arm sp 
+    | Return a ->
+                (match a.exp_return_val with
+                   |None -> Ok current'
+                   |Some exp -> match exp with
+                   | Var a -> let form = Ipure.BForm (Eq (Var (("res",Unprimed),a.exp_var_pos), Var ((a.exp_var_name,Unprimed),a.exp_var_pos),a.exp_var_pos)) in
+                   (Ok (update_pure current' form a.exp_var_pos))
+                   | _ -> raise (Foo ("Only return var"))
+                
+                )
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
 
@@ -670,6 +682,7 @@ let entail_for_dynamic s1 s2 d1 d2 self parent_class proc_name =
 
 
 let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
+  let () = print_string ("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
 	match decl.proc_body with 
 	| None -> raise (Foo "oop_verification_method not yet")
 	| Some exp -> 
@@ -685,7 +698,6 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
     temp_var := [];
     let dynamic_pre = (fst (List.hd decl.proc_dynamic_specs)) in
     let dynamic_post = (snd (List.hd decl.proc_dynamic_specs)) in
-    let () = print_string ("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
     if (res == true) then print_string "postcondition satisfied \n" else print_string "cannot prove postcondition \n";
     let entail_for_static = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
     if (String.compare (decl.proc_type) "virtual" == 0) then (if (res == true && entail_for_static == true) then (verified_method := (obj.data_name,decl.proc_name,(static_pre,static_post),(dynamic_pre,dynamic_post)):: !verified_method))
@@ -709,8 +721,8 @@ let oop_verification_object (decl: Iast.data_decl) =
 		| [] -> ""
 		| meth :: restMeth -> 
 			let msg = oop_verification_method decl meth in 
-			msg ^ helper restMeth
-	in print_string (helper decl.data_methods);  
+			print_string msg ; helper restMeth
+	in helper decl.data_methods;  
 ;;
 
 
