@@ -336,7 +336,15 @@ let null_test spec var_name =
   else false 
 ;;
 
-
+let find_residue os1 os2=
+    let s1 = retriveheap os1 in
+    let s2 = retriveheap (remove_ok_err os2) in
+    let rec helper spec1 spec2 =
+         match spec1 with
+         | Iformula.Heapdynamic a -> let (r1,r2) = retriveContentfromNode spec2 (fst a.h_formula_heap_node) in if (r1 == false) then Iformula.Heapdynamic a else Iformula.HTrue
+         | Iformula.Star a -> Iformula.Star {h_formula_star_h1 = helper a.h_formula_star_h1 spec2; h_formula_star_h2 = helper a.h_formula_star_h2 spec2; h_formula_star_pos = a.h_formula_star_pos}
+         | _ -> raise (raise (Foo ("Other H F"))) in
+    helper s1 s2
 
 let entail_checking name sp1 sp2 = match sp1 with
   |Ok a -> (match sp2 with 
