@@ -1,4 +1,4 @@
 data Cnt {int val; }.
 
-checkentail this::Cnt<v> & true |- this::Cnt<v> & true.
+checkentail (exists temp1: this::Cnt<v> & a = temp1 & temp1 = 1) |- (exists temp1: this::Cnt<v> & a=temp1 & temp1=5).
 print residue.

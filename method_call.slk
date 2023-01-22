@@ -1,0 +1,4 @@
+data Super {int val; }.
+
+checkentail (exists temp2, temp1: this::Super<v> & (((a = e) & (b = r)) & (((this = o) & ((a = temp1) & ((b = temp2) & (true)))) & (((v = v) & (true)) & ((true) & ((true) & (true)))))) & (((true) & (temp1 = 1)) & (temp2 = 2))) |- (exists temp2, temp1: emp*o::Super<v> & (((true) & (temp1 = 1)) & (temp2 = 2)) & (((this = o) & ((a = temp1) & ((b = temp2) & (true)))) & (((v = v) & (true)) & ((true) & ((true) & (true)))))).
+print residue.

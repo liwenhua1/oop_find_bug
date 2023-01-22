@@ -142,9 +142,11 @@ let take_data h =
   let s = (List.hd h) in
   (fst s, write_field (snd s)) 
 let rec get_data heap = 
+  (* print_string ((Iprinter.string_of_h_formula heap)^"\n"); *)
   match heap with
   |Iformula.Heapdynamic a -> [(take_data a.h_formula_heap_content)]
   |Iformula.Star a -> (get_data a.h_formula_star_h1) @ (get_data a.h_formula_star_h2)
+  |Iformula.HTrue -> []
   |_ ->  raise (Foo "Other F ")
 let rec notinside e alist = 
   match alist with
@@ -180,6 +182,17 @@ let write_sleek_file name spec1 spec2=
   let file = name in
   let header = data_message spec1 spec2 in 
   let content = header ^"\n"^"checkentail "^string_of_formula spec1 ^" |- "^ (if (List.length !temp_var == 0) then string_of_formula spec2 else spec_with_ex_no_ok_err spec2) ^"."^ "\n" ^ "print residue." in
+  let oc = open_out file in
+  (* create or truncate file, return channel *)
+  Printf.fprintf oc "%s\n" content;
+  (* write something *)
+  close_out oc;
+;;
+
+let write_sleek_file_method_call name spec1 spec2= 
+  let file = name in
+  let header = data_message spec1 spec2 in 
+  let content = header ^"\n"^"checkentail "^(if (List.length !temp_var == 0) then string_of_formula spec1 else spec_with_ex_no_ok_err spec1)^" |- "^ (if (List.length !temp_var == 0) then string_of_formula spec2 else spec_with_ex_no_ok_err spec2) ^"."^ "\n" ^ "print residue." in
   let oc = open_out file in
   (* create or truncate file, return channel *)
   Printf.fprintf oc "%s\n" content;
@@ -367,10 +380,10 @@ let find_residue spec1 method_call =
       Iformula.Star {h_formula_star_h1= snd (helper a.h_formula_star_h1);h_formula_star_h2 = snd (helper a.h_formula_star_h2);h_formula_star_pos=a.h_formula_star_pos})
       | _ -> raise (Foo "other Heap F") in
       helper spec1
-let unification (mth_call:exp_call_recv) (mth_dec:proc_decl) state = 
+let unification_pure (mth_call:exp_call_recv) (mth_dec:proc_decl) = 
   let p = mth_call.exp_call_recv_pos in
   let receiver = find_var (mth_call.exp_call_recv_receiver) in
-  let head = Ipure.BForm (Eq (Var ((receiver,Unprimed),p), Var (("this",Unprimed),p),p)) in
+  let head = Ipure.BForm (Eq (Var (("this",Unprimed),p), Var ((receiver,Unprimed),p),p)) in
   let rec find_para (alist:param list) = match alist with
          | [] -> []
          | x::xs -> x.param_name :: find_para xs in
@@ -381,10 +394,39 @@ let unification (mth_call:exp_call_recv) (mth_dec:proc_decl) state =
   let rec helper (alist:ident list) (blist:ident list) = 
     match (alist,blist) with
     |([],[]) -> Ipure.mkTrue p
-    |(x::xs,y::ys) -> let content = snd (retriveContentfromPure state x) in
-      Ipure.And (Ipure.BForm (Eq (Var ((y,Unprimed),p), content,p)),helper xs ys,p) 
+    |(x::xs,y::ys) -> 
+      Ipure.And (Ipure.BForm (Eq (Var ((y,Unprimed),p), Var ((x,Unprimed),p),p)),helper xs ys,p) 
     | _ -> raise (Foo "parameter unmatched") in
      Ipure.And (head ,helper (find_var_list mth_call.exp_call_recv_arguments) para_list,p) 
+
+let return_heap_uni (var_eq:P.b_formula) p1 p2 = 
+  let flatten_list (alist: (ident * (ident * P.exp) list) list) =
+    List.fold_left (fun acc (a,b) -> acc @ b) [] alist in
+  let rec helper alist blist po= 
+     match (alist, blist) with
+       |([],[]) -> Ipure.mkTrue po
+       |(x::xs,y::ys) -> if String.compare (fst x) (fst y) == 0 then Ipure.And (Ipure.BForm (Eq (snd x, snd y,po)), helper xs ys po,po) else raise (Foo "field unmatched")
+       | _ -> raise (Foo "parameter unmatched") in
+  match var_eq with
+  | Eq (Var a, Var b, c) -> let node1 = retriveContentfromNode p2 (fst (fst a)) in 
+                            if (fst node1 == false) then Ipure.mkTrue c
+                            else  let node2 = retriveContentfromNode p1 (fst (fst b)) in
+                                  let (dec, pre) = (flatten_list (snd node1), flatten_list (snd node2)) in
+                            helper dec pre c
+  | Ipure.BConst (true,a) -> Ipure.mkTrue a
+  |_ -> raise (Foo "var Eq required")
+
+
+let rec unification_heap pre pre_dec var_uni=
+      (* print_string ((string_of_pure_formula var_uni)^"\n"); *)
+      match var_uni with
+      | Ipure.BForm a -> return_heap_uni a pre pre_dec
+      | Ipure.And (a,b,c) -> Ipure.And (unification_heap pre pre_dec a, unification_heap pre pre_dec b,c)
+      | _ -> raise (Foo "other pure F")
+    
+
+
+
 let entail_checking name sp1 sp2 = match sp1 with
   |Ok a -> (match sp2 with 
            | Ok b -> write_sleek_file name a b
@@ -392,6 +434,14 @@ let entail_checking name sp1 sp2 = match sp1 with
   |Err a -> (match sp2 with 
            | Err b -> write_sleek_file name a b
            | Ok b -> print_string "entailment failed")
+
+let entail_checking_method_call name sp1 sp2 = match sp1 with
+           |Ok a -> (match sp2 with 
+                    | Ok b -> write_sleek_file_method_call name a b
+                    | Err b -> print_string "entailment failed")
+           |Err a -> (match sp2 with 
+                    | Err b -> write_sleek_file_method_call name a b
+                    | Ok b -> print_string "entailment failed")
 
 let find_meth_dec obj_name mth_name = 
   let p = match !program with
@@ -642,12 +692,21 @@ match current with
                    | _ -> raise (Foo ("Only return var"))
                 
                 )
-    | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in print_string ("residue"^(string_of_h_formula (fst res)));print_string ("remaining"^(string_of_h_formula (snd res))^"\n");
+    | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in print_string ("residue "^(string_of_h_formula (fst res)));print_string (" remaining "^(string_of_h_formula (snd res))^"\n");
       let obj_name =fst (List.hd (snd (retriveContentfromNode (retriveheap current') (find_var a.exp_call_recv_receiver)))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
-      let meth_pre_pure = unification a meth_dec (retrivepure current')in 
-      let form = Ipure.And (retrivepure current' ,meth_pre_pure,a.exp_call_recv_pos) in
-      let spec = Iformula.Base {formula_base_heap = snd res;formula_base_pure = form;formula_base_pos = a.exp_call_recv_pos} in
-      print_string ((string_of_formula spec)^"\n");
+      let uni_pre_pure = unification_pure a meth_dec in 
+      let (_,_,c,d) = List.hd !verified_method in 
+      let spec_selection = fst d in
+      let uni_pre_heap = unification_heap (retriveheap current') (retriveheap (remove_ok_err spec_selection)) uni_pre_pure in
+      let uni = Ipure.And (uni_pre_pure ,uni_pre_heap,a.exp_call_recv_pos) in
+      let form = Ipure.And (retrivepure current' ,uni,a.exp_call_recv_pos) in
+      let pre_pure = Ipure.And ( (Ipure.And (retrivepure (remove_ok_err spec_selection) ,uni,a.exp_call_recv_pos)), retrivepure current', a.exp_call_recv_pos) in
+      let pre_condition = Ok (Iformula.Base {formula_base_heap = retriveheap (remove_ok_err spec_selection);formula_base_pure = pre_pure;formula_base_pos = a.exp_call_recv_pos}) in
+      let current_state = Iformula.Base {formula_base_heap = snd res;formula_base_pure = form;formula_base_pos = a.exp_call_recv_pos} in
+      entail_checking_method_call "method_call.slk" pre_condition (Ok current_state); 
+      let content_slk = Asksleek.asksleek "method_call.slk" in
+      let res = Asksleek.entail_res content_slk in
+      print_string (string_of_bool res);
     (Ok current')
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
