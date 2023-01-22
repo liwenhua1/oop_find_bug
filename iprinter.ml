@@ -222,7 +222,7 @@ let rec string_of_h_formula = function
 			let tmp2 = String.concat ", " tmp1 in
 				v ^ (if p = Primed then "'" else "") ^ "::" ^ id 
 				^ "<" ^ tmp2 ^ ">"
-  | F.HTrue                         -> ""                                                                                                (* ?? is it ok ? *)
+  | F.HTrue                         -> "emp"                                                                                                (* ?? is it ok ? *)
   | F.HFalse                        -> "false"
 ;;
 let rec getTail (li: 'a list) : 'a = 

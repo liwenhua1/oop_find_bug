@@ -8,7 +8,4 @@ ocamlfind ocamlopt -linkpkg -package str util.ml
 ocamlopt globals.cmx error.ml
 ocamlfind ocamlopt -o hip -linkpkg -package ocamlgraph,str,unix globals.cmx error.cmx util.cmx asksleek.ml ipure.ml iformula.ml cpure.ml iast.ml iparser.mli iparser.ml ilexer.ml iprinter.ml debug.ml main.ml
 
-rm *.cmi
-rm *.cmo
-rm *.cmx
-rm *.o
+

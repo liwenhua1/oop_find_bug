@@ -15,6 +15,7 @@ exception Foo of string
 (******************************************)
 (* main function                          *)
 (******************************************)
+let program = ref (None:prog_decl option)
 let verified_method = ref ([]: (ident*ident*(Iast.specs*Iast.specs)*(Iast.specs*Iast.specs)) list)
 let temp_var = ref ([]: string list)
 let spec_with_ex_no_ok_err s= 
@@ -336,7 +337,7 @@ let null_test spec var_name =
   else false 
 ;;
 
-let find_residue os1 os2=
+(* let find_residue os1 os2=
     let s1 = retriveheap os1 in
     let s2 = retriveheap (remove_ok_err os2) in
     let rec helper spec1 spec2 =
@@ -344,8 +345,46 @@ let find_residue os1 os2=
          | Iformula.Heapdynamic a -> let (r1,r2) = retriveContentfromNode spec2 (fst a.h_formula_heap_node) in if (r1 == false) then Iformula.Heapdynamic a else Iformula.HTrue
          | Iformula.Star a -> Iformula.Star {h_formula_star_h1 = helper a.h_formula_star_h1 spec2; h_formula_star_h2 = helper a.h_formula_star_h2 spec2; h_formula_star_pos = a.h_formula_star_pos}
          | _ -> raise (raise (Foo ("Other H F"))) in
-    helper s1 s2
+    helper s1 s2 *)
+let find_var var_exp = 
+  match var_exp with
+  |Iast.Var a -> a.exp_var_name
+  |Iast.This a -> "this"
+  | _ -> (raise (Foo ("Receiver need to be var"))) 
 
+let all_arg m_call = 
+  let start = [find_var m_call.exp_call_recv_receiver] in
+  List.fold_right (fun a acc -> let res = find_var a in [res] @ acc ) m_call.exp_call_recv_arguments start            
+let find_residue spec1 method_call = 
+    let arg_list = all_arg method_call in
+    let rec not_in s slist = match slist with
+                            | [] -> true
+                            | x::xs -> if String.compare x s == 0 then false else not_in s xs in
+    let rec helper heap = 
+      match heap with
+      |Iformula.Heapdynamic a -> if not_in (fst (a.h_formula_heap_node)) arg_list then (Iformula.Heapdynamic a, Iformula.HTrue) else (Iformula.HTrue, Iformula.Heapdynamic a)
+      |Star a -> (Iformula.Star {h_formula_star_h1= fst (helper a.h_formula_star_h1);h_formula_star_h2=(fst (helper a.h_formula_star_h2));h_formula_star_pos=a.h_formula_star_pos},
+      Iformula.Star {h_formula_star_h1= snd (helper a.h_formula_star_h1);h_formula_star_h2 = snd (helper a.h_formula_star_h2);h_formula_star_pos=a.h_formula_star_pos})
+      | _ -> raise (Foo "other Heap F") in
+      helper spec1
+let unification (mth_call:exp_call_recv) (mth_dec:proc_decl) state = 
+  let p = mth_call.exp_call_recv_pos in
+  let receiver = find_var (mth_call.exp_call_recv_receiver) in
+  let head = Ipure.BForm (Eq (Var ((receiver,Unprimed),p), Var (("this",Unprimed),p),p)) in
+  let rec find_para (alist:param list) = match alist with
+         | [] -> []
+         | x::xs -> x.param_name :: find_para xs in
+  let rec find_var_list (alist:Iast.exp list) = match alist with
+    |[]-> []
+    |x::xs -> let var = find_var x in var :: find_var_list xs in
+  let para_list = find_para mth_dec.proc_args in
+  let rec helper (alist:ident list) (blist:ident list) = 
+    match (alist,blist) with
+    |([],[]) -> Ipure.mkTrue p
+    |(x::xs,y::ys) -> let content = snd (retriveContentfromPure state x) in
+      Ipure.And (Ipure.BForm (Eq (Var ((y,Unprimed),p), content,p)),helper xs ys,p) 
+    | _ -> raise (Foo "parameter unmatched") in
+     Ipure.And (head ,helper (find_var_list mth_call.exp_call_recv_arguments) para_list,p) 
 let entail_checking name sp1 sp2 = match sp1 with
   |Ok a -> (match sp2 with 
            | Ok b -> write_sleek_file name a b
@@ -353,6 +392,21 @@ let entail_checking name sp1 sp2 = match sp1 with
   |Err a -> (match sp2 with 
            | Err b -> write_sleek_file name a b
            | Ok b -> print_string "entailment failed")
+
+let find_meth_dec obj_name mth_name = 
+  let p = match !program with
+  |None -> (raise (Foo ("Impossible")))
+  |Some a -> a in
+  let obj_list = p.prog_data_decls in
+  let rec helper alist name= match alist with
+  | [] -> (raise (Foo ("Unknown obj")))
+  | x::xs -> if String.compare x.data_name name == 0 then x else helper xs name in
+  let obj = helper obj_list obj_name in
+  let rec helper2 (alist:proc_decl list) name= match alist with
+  | [] -> (raise (Foo ("Unknown method")))
+  | x::xs -> if String.compare x.proc_name name == 0 then x else helper2 xs name in
+  helper2 obj.data_methods mth_name
+
 
 let rec oop_verification_method_aux obj decl expr (current:specs) : specs = 
 
@@ -446,6 +500,11 @@ match current with
                else raise (Foo ("Variable " ^ v2 ^" not in spec"))
             |_ -> raise (Foo ("Other heap formula: cast")))
           | _ ->  raise (Foo (" not a var_exp for casting ")))
+
+          | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
+          let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), value , loc)) in
+          Ok (update_pure current' form loc)
+          
       
       | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
       )
@@ -583,6 +642,13 @@ match current with
                    | _ -> raise (Foo ("Only return var"))
                 
                 )
+    | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in print_string ("residue"^(string_of_h_formula (fst res)));print_string ("remaining"^(string_of_h_formula (snd res))^"\n");
+      let obj_name =fst (List.hd (snd (retriveContentfromNode (retriveheap current') (find_var a.exp_call_recv_receiver)))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
+      let meth_pre_pure = unification a meth_dec (retrivepure current')in 
+      let form = Ipure.And (retrivepure current' ,meth_pre_pure,a.exp_call_recv_pos) in
+      let spec = Iformula.Base {formula_base_heap = snd res;formula_base_pure = form;formula_base_pos = a.exp_call_recv_pos} in
+      print_string ((string_of_formula spec)^"\n");
+    (Ok current')
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
 
@@ -750,6 +816,7 @@ let () =
 	let source_files = [inputfile] in
   let r = List.map parse_file_full source_files in
 	let r1 = List.hd r in 
+  program := Some r1;
   let _ = Iast.build_hierarchy r1 in
   (* let res = Iast.sub_type (Named "FastCnt1") (Named "Cnt1") in
   let _ = print_string (Bool.to_string res) in *)

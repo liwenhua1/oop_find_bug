@@ -1,5 +1,4 @@
-data AbstractHistogram {}.
-data Cnt {int val; }.
+data Super {int val; }.
 
-checkentail this::Cnt<v> * other::AbstractHistogram<> & true |- (exists otherHistogram, y: this::Cnt<v> * other::AbstractHistogram<> & ((true) & (y = 1)) & (y = 1)).
+checkentail this::Super<v> * o::Super<v> & true |- (exists temp2, temp1: this::Super<v> * o::Super<v> & ((true) & (temp1 = 1)) & (temp2 = 2)).
 print residue.
