@@ -142,12 +142,11 @@ let take_data h =
   let s = (List.hd h) in
   (fst s, write_field (snd s)) 
 let rec get_data heap = 
-  (* print_string ((Iprinter.string_of_h_formula heap)^"\n"); *)
   match heap with
   |Iformula.Heapdynamic a -> [(take_data a.h_formula_heap_content)]
   |Iformula.Star a -> (get_data a.h_formula_star_h1) @ (get_data a.h_formula_star_h2)
   |Iformula.HTrue -> []
-  |_ ->  raise (Foo "Other F ")
+  |_ ->  raise (Foo "Other F1 ")
 let rec notinside e alist = 
   match alist with
   | [] -> true
@@ -424,7 +423,55 @@ let rec unification_heap pre pre_dec var_uni=
       | Ipure.And (a,b,c) -> Ipure.And (unification_heap pre pre_dec a, unification_heap pre pre_dec b,c)
       | _ -> raise (Foo "other pure F")
     
-
+let rec search_replace (var: ident * P.exp) formu = 
+  let rec helper exp1 exp2=
+       (match exp1 with
+         | Ipure.Var s -> if String.compare (fst (fst (fst exp2))) (fst (fst s)) == 0 then (true, snd exp2) else (false, exp1)
+         | Ipure.Add (x,y,z) -> let (r1,r2) = helper x exp2 in if r1 == true then (true, Ipure.Add (r2,y,z)) else let (r3,r4) = helper y exp2 in if r3 == true then (true, Ipure.Add (x,r4,z)) else (false, exp1)
+         | Ipure.Subtract (x,y,z) -> let (r1,r2) = helper x exp2 in if r1 == true then (true, Ipure.Subtract (r2,y,z)) else let (r3,r4) = helper y exp2 in if r3 == true then (true, Ipure.Subtract (x,r4,z)) else (false, exp1)
+         | _ -> raise (Foo "other pure")) in
+  match formu with 
+  | Ipure.BForm (BConst (true,a)) -> (false, var)
+  | Ipure.And (a,b,c) -> let (r1,r2) = (search_replace var a) in if r1 == true then (true, r2) else (search_replace var b)
+  | Ipure.BForm Eq (Var a,b,c) -> let content = snd var in let (r1,r2) = helper content (a,b) in if r1 == true then (true, (fst var, r2)) else (false, var)
+  |_ -> raise (Foo "other pureF1")
+ let refine state formula =  
+  let h1 (node: (ident * P.exp) list) form = 
+      List.fold_left (fun acc a -> let (r1, r2) = search_replace a form in if (r1 == true) then acc @ [r2] else acc @ [a]) [] node in
+    let process node form = 
+      List.fold_left (fun acc (a,b)-> let res = h1 b form in acc @ [(a,res)]) [] node in 
+  let rec helper name p = 
+        (* print_string ((string_of_pure_formula p)^"\n"); *)
+        match p with 
+        | Ipure.BForm (BConst (true,a)) -> (false, name)
+        | Ipure.And (a,b,c) -> let (r1,r2) = (helper name a) in if r1 == true then (true, r2) else (helper name b)
+        | Ipure.BForm Eq (Var a,Var b,c) -> if String.compare (fst (fst a)) name == 0 then (true, (fst (fst b))) else (false, name) 
+        | Ipure.BForm Eq (Var a,_,c) -> (false, name) 
+        |_ -> raise (Foo "other pureF2") in
+  let check_head name1 p1 = 
+    let (r1,r2) = helper name1 p1 in if r1 == true then r2 else name1 in
+  let rec helper1 s p = 
+    match s with
+    | Iformula.HTrue -> Iformula.HTrue
+    | Iformula.Heapdynamic a -> let head = check_head (fst a.h_formula_heap_node) p in let res = process a.h_formula_heap_content p in Iformula.Heapdynamic {h_formula_heap_node=(head, Unprimed);h_formula_heap_content=res;h_formula_heap_pos=a.h_formula_heap_pos}
+    | Iformula.Star a -> Iformula.Star {h_formula_star_h1= helper1 a.h_formula_star_h1 p;h_formula_star_h2 = helper1 a.h_formula_star_h2 p;h_formula_star_pos = a.h_formula_star_pos}
+    | _ -> raise (Foo "other heapF") in
+  let finished_heap = helper1 (retriveheap state) formula in
+  let rec check_replace_pure pu fo =
+    let rec h3 exp f = 
+      match exp with
+      | Ipure.Var a -> let res = check_head (fst (fst a)) f in Ipure.Var ((res,Unprimed), snd a)
+      | Ipure.Add (a,b,c) -> Ipure.Add ((h3 a f),(h3 b f),c)
+      | Ipure.Subtract (a,b,c) -> Ipure.Subtract ((h3 a f),(h3 b f),c)
+      | Ipure.IConst a -> Ipure.IConst a
+      | _ -> raise (Foo "not support") in
+    match pu with
+    | Ipure.BForm BConst (true,a) -> Ipure.BForm (BConst (true,a))
+    | Ipure.And (a,b,c) ->Ipure.And (check_replace_pure a fo,check_replace_pure b fo,c)
+    | Ipure.BForm (Eq (a,b,c)) -> Ipure.BForm (Eq (h3 a fo,h3 b fo,c))
+    |_ -> raise (Foo "other pureF3") in 
+  let finished_pure = check_replace_pure (retrivepure state) formula in
+  Iformula.Base {formula_base_heap =finished_heap; formula_base_pure = finished_pure; formula_base_pos = retrivepo state}
 
 
 let entail_checking name sp1 sp2 = match sp1 with
@@ -433,7 +480,7 @@ let entail_checking name sp1 sp2 = match sp1 with
            | Err b -> print_string "entailment failed")
   |Err a -> (match sp2 with 
            | Err b -> write_sleek_file name a b
-           | Ok b -> print_string "entailment failed")
+           | Ok b -> print_string "entailment failed") 
 
 let entail_checking_method_call name sp1 sp2 = match sp1 with
            |Ok a -> (match sp2 with 
@@ -692,7 +739,7 @@ match current with
                    | _ -> raise (Foo ("Only return var"))
                 
                 )
-    | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in print_string ("residue "^(string_of_h_formula (fst res)));print_string (" remaining "^(string_of_h_formula (snd res))^"\n");
+    | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in 
       let obj_name =fst (List.hd (snd (retriveContentfromNode (retriveheap current') (find_var a.exp_call_recv_receiver)))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
       let uni_pre_pure = unification_pure a meth_dec in 
       let (_,_,c,d) = List.hd !verified_method in 
@@ -705,9 +752,15 @@ match current with
       let current_state = Iformula.Base {formula_base_heap = snd res;formula_base_pure = form;formula_base_pos = a.exp_call_recv_pos} in
       entail_checking_method_call "method_call.slk" pre_condition (Ok current_state); 
       let content_slk = Asksleek.asksleek "method_call.slk" in
-      let res = Asksleek.entail_res content_slk in
-      print_string (string_of_bool res);
-    (Ok current')
+      let res1 = Asksleek.entail_res content_slk in
+      let post_condition = refine (remove_ok_err (snd d)) uni in
+      let post_state = Iformula.Base {formula_base_heap = Iformula.Star {h_formula_star_h1 = fst res;h_formula_star_h2 =retriveheap post_condition;h_formula_star_pos = retrivepo current'}; 
+                                    formula_base_pure = Ipure.And (retrivepure current',retrivepure post_condition,retrivepo current');formula_base_pos = retrivepo current'} in
+      if res1 == true then match (snd d) with
+        |Ok a -> Ok post_state
+        |Err a -> Err post_state
+      (* let post_state = refine post_condition uni_pre_heap unification_pure in  *)
+      else raise (Foo ("COuld not call method" ^ a.exp_call_recv_method))
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
 

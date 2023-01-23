@@ -259,6 +259,7 @@ let rec normalise_formula_base_heap (hf:F.h_formula) : F.h_formula =
   | Star a -> Star ({h_formula_star_h1 = normalise_formula_base_heap a.h_formula_star_h1;
                      h_formula_star_h2 = normalise_formula_base_heap a.h_formula_star_h2;
                      h_formula_star_pos = a.h_formula_star_pos})
+  | HTrue -> HTrue
   | _ ->  raise (Foo "other F")
 
 (* pretty printing for formulae *) 

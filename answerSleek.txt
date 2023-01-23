@@ -8,22 +8,27 @@ Entail 1: Valid.
 
 Residue:
 
- <1>emp&v_12=v&{FLOW,(20,21)=__norm#E}[]
+
+Starting Omega.../usr/local/bin/oc
+ <1>emp&{FLOW,(20,21)=__norm#E}[]
 [[ SEARCH ==>  Match(this,this) ==>  SEARCH ==>  Match(o,o)]]
 
 
 
 Stop z3... 8 invocations 
+Stop Omega... 2 invocations 
 SAT Count   : 2
 SAT % Hit   : 0.%
 IMPLY Count : 7
 IMPLY % Hit : 14.28%
-Time(cache overhead) : 0.000778 (seconds)
+Time(cache overhead) : 0.002449 (seconds)
 
 0 false contexts at: ()
 
-!!! log(small):(0.011606,12)
-Total verification time: 0.05329 second(s)
-	Time spent in main process: 0.040268 second(s)
-	Time spent in child processes: 0.013022 second(s)
+!!! log(small):(0.014724,13)
+!!! 
+ log(bigger)(>4s)(1):(5.,[(simplify:10<2:Z3,5.)])
+Total verification time: 0.063913 second(s)
+	Time spent in main process: 0.042591 second(s)
+	Time spent in child processes: 0.021322 second(s)
 
