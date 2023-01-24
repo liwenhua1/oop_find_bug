@@ -1,4 +1,4 @@
-data FastCnt {int val; int bak; }.
+data FastCnt {int val; int val1; int bak; }.
 
-checkentail r::FastCnt<e, r> & (((true) & (temp = 1)) & (temp1 = 2)) & ((temp = e) & (temp1 = r))) |- .
+checkentail this::FastCnt<v, w, n> & x = null |- (exists temp: this::FastCnt<v, w, n> & (x = null) & (temp = v)).
 print residue.

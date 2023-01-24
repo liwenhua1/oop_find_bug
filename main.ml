@@ -205,39 +205,52 @@ let write_sleek_file_method_call name spec1 spec2=
   close_out oc;
 ;;
 
-  let rec retriveContentfromNode (spec:Iast.F.h_formula) name = 
+let rec retriveContentfromPure (spec:formula) name =
+  match spec with
+   | Ipure.BForm (Eq (Var ((v1,pr),p1), b, p2))  -> if (String.compare v1 name == 0) then (true, b) else (false, b )
+   | Ipure.BForm a -> (false, Null {
+    pos_fname = "";
+    pos_lnum =1;
+    pos_bol =1;
+    pos_cnum =1;
+  } )
+   | Ipure.And (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
+        if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
+        if r1 == true then (true, r2) else (false, r2)
+   | Ipure.Or (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
+        if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
+        if r1 == true then (true, r2) else (false, r2)
+   | _ ->  raise (Foo ( "other Pure formula "))
+
+   ;;
+
+ let rec rfN_helper (spec:Iast.F.h_formula) name =
     match spec with 
      | Heapdynamic {h_formula_heap_node; h_formula_heap_content; _ } -> 
         if (String.compare (fst h_formula_heap_node) name == 0) then (true, h_formula_heap_content)
         else (false, h_formula_heap_content)
      | Star {h_formula_star_h1; h_formula_star_h2;_} -> 
-      let (r1,r2) = retriveContentfromNode h_formula_star_h1 name in
+      let (r1,r2) = rfN_helper h_formula_star_h1 name in
         if r1 == true then (true, r2)
-        else let (r1,r2) = retriveContentfromNode h_formula_star_h2 name in
+        else let (r1,r2) = rfN_helper h_formula_star_h2 name in
              if r1 == true then (true, r2)
              else (false, r2)
      | HTrue -> (false, [])
-     | _ -> raise (Foo "Other F")
+     | _ -> raise (Foo "Other F") 
+  let rec retriveContentfromNode (spec1:Iast.F.formula) name1 = 
+    let alising = retrivepure spec1 in
+    let heap = retriveheap spec1 in
+     let (r1,r2) = rfN_helper heap name1 in
+     if r1==true then (true, r2) else 
+      let (res1,res2) = retriveContentfromPure alising name1 in if res1 == false then (false, []) else match res2 with
+                                                                                                                                | Var a -> retriveContentfromNode (spec1:Iast.F.formula) (fst (fst a))
+                                                                                                                                | Null a -> (false, [])
+                                                                                                                                | _ -> raise (Foo "Must be var")
+
+
     ;;
 
-let rec retriveContentfromPure (spec:formula) name =
-      match spec with
-       | Ipure.BForm (Eq (Var ((v1,pr),p1), b, p2))  -> if (String.compare v1 name == 0) then (true, b) else (false, b )
-       | Ipure.BForm a -> (false, Null {
-        pos_fname = "";
-        pos_lnum =1;
-        pos_bol =1;
-        pos_cnum =1;
-      } )
-       | Ipure.And (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
-            if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
-            if r1 == true then (true, r2) else (false, r2)
-       | Ipure.Or (a,b,_) -> let (r1 ,r2) = retriveContentfromPure a name in 
-            if r1 == true then (true, r2) else let (r1 ,r2) = retriveContentfromPure b name in
-            if r1 == true then (true, r2) else (false, r2)
-       | _ ->  raise (Foo ( "other Pure formula "))
 
-       ;;
 let up_down_cast s t= 
   let rec helper1 sp ty=
      match sp with
@@ -269,7 +282,10 @@ let retrive_content_from_list node feild =
 
 let update_content_list c_list feild value = 
   List.fold_right (fun (a,b) acc -> if (String.compare a feild == 0) then [(a,value)] @ acc else [(a,b)] @ acc) c_list [] 
-let rec update_heap (spec:Iast.F.h_formula) var f value = 
+let rec update_heap (spec1:Iast.F.formula) var1 f1 value1 = 
+  let pure = retrivepure spec1 in 
+  let heap = retriveheap spec1 in
+  let rec helper (spec:Iast.F.h_formula) var f value =
   match spec with 
      | Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = c; h_formula_heap_pos = po } -> 
         if (String.compare (fst n) var == 0) then 
@@ -277,11 +293,24 @@ let rec update_heap (spec:Iast.F.h_formula) var f value =
           Iast.F.Heapdynamic {h_formula_heap_node = n; h_formula_heap_content = (List.rev res); h_formula_heap_pos = po }
         else spec
      | Star {h_formula_star_h1 = h1; h_formula_star_h2 = h2; h_formula_star_pos=po} -> 
-       Iast.F.Star {h_formula_star_h1 = update_heap h1 var f value; h_formula_star_h2 = update_heap h2 var f value; h_formula_star_pos=po}
+       Iast.F.Star {h_formula_star_h1 = helper h1 var f value; h_formula_star_h2 = helper h2 var f value; h_formula_star_pos=po}
      | HTrue -> HTrue
-     | _ -> raise (Foo "otherF")
+     | _ -> raise (Foo "otherF") in 
+  let v = rfN_helper heap var1 in 
+  if (fst v) = true then helper heap var1 f1 value1 else let v2 = retriveContentfromPure pure var1 in match v2 with 
+                                                            | (true, Var a) -> update_heap spec1 (fst (fst a)) f1 value1
+                                                            | _ -> raise (Foo "impp")
+
     ;;
-let update_node_content spec node_name content=
+
+let find_var var_exp = 
+      match var_exp with
+      |Iast.Var a -> a.exp_var_name
+      |Iast.This a -> "this"
+      | _ -> (raise (Foo ("Receiver need to be var"))) 
+let rec update_node_content spec node_name content=
+  let ress = rfN_helper (retriveheap (remove_ok_err spec)) node_name in 
+  if (fst ress) == true then
   let rec replace heap n c = 
     match heap with
     | Iformula.Heapdynamic a -> if (String.compare (fst a.h_formula_heap_node) n == 0) then Iformula.Heapdynamic {h_formula_heap_node = a.h_formula_heap_node ; h_formula_heap_content = c; h_formula_heap_pos = a.h_formula_heap_pos} else Iformula.Heapdynamic a
@@ -295,6 +324,11 @@ let update_node_content spec node_name content=
   |Err a -> let h = retriveheap a in Err (Base { formula_base_heap = replace h node_name content;
   formula_base_pure = retrivepure a;
   formula_base_pos = retrivepo a})
+  else
+    let resss = retriveContentfromPure (retrivepure (remove_ok_err spec)) node_name in 
+    match resss with 
+    | (true, Var a) -> update_node_content spec (fst (fst a)) content 
+    | _ -> raise (Foo "impppp")
 (*let writeToCurrentSpec (spec:Iast.F.formula) (index:int) (value:P.exp) : Iast.F.formula = 
   match spec with 
   | Iast.F.Base {formula_base_heap; formula_base_pure; formula_base_pos} -> 
@@ -349,11 +383,14 @@ let retriveStack exp_var_name : P.exp =
 
 
 
-let null_test spec var_name = 
-  let (r1,r2) = retriveContentfromNode (retriveheap spec) var_name in
-  if r1 == false then let (res1,res2) = retriveContentfromPure (retrivepure spec) var_name in
-     if res1 == true then if Ipure.is_null res2 then true else false
-     else false
+let rec null_test spec var_name = 
+  let (r1,r2) = retriveContentfromNode spec var_name in
+  if r1 == false then (let (res1,res2) = retriveContentfromPure (retrivepure spec) var_name in
+     if res1 == true then match res2 with
+                          | Null a -> true
+                          | Var b -> null_test spec (fst (fst b))
+                          |_ -> raise (Foo "mustbeheapvar")
+     else false)
   else false 
 ;;
 
@@ -366,11 +403,7 @@ let null_test spec var_name =
          | Iformula.Star a -> Iformula.Star {h_formula_star_h1 = helper a.h_formula_star_h1 spec2; h_formula_star_h2 = helper a.h_formula_star_h2 spec2; h_formula_star_pos = a.h_formula_star_pos}
          | _ -> raise (raise (Foo ("Other H F"))) in
     helper s1 s2 *)
-let find_var var_exp = 
-  match var_exp with
-  |Iast.Var a -> a.exp_var_name
-  |Iast.This a -> "this"
-  | _ -> (raise (Foo ("Receiver need to be var"))) 
+
 
 let all_arg m_call = 
   let start = [find_var m_call.exp_call_recv_receiver] in
@@ -435,6 +468,7 @@ let rec search_replace (var: ident * P.exp) formu =
   let rec helper exp1 exp2=
        (match exp1 with
          | Ipure.Var s -> if String.compare (fst (fst (fst exp2))) (fst (fst s)) == 0 then (true, snd exp2) else (false, exp1)
+         | Ipure.IConst s -> (false, exp1)
          | Ipure.Add (x,y,z) -> let (r1,r2) = helper x exp2 in if r1 == true then (true, Ipure.Add (r2,y,z)) else let (r3,r4) = helper y exp2 in if r3 == true then (true, Ipure.Add (x,r4,z)) else (false, exp1)
          | Ipure.Subtract (x,y,z) -> let (r1,r2) = helper x exp2 in if r1 == true then (true, Ipure.Subtract (r2,y,z)) else let (r3,r4) = helper y exp2 in if r3 == true then (true, Ipure.Subtract (x,r4,z)) else (false, exp1)
          | _ -> raise (Foo "other pure")) in
@@ -548,18 +582,18 @@ let retrieve_spec obj_name meth_name spec_inter =
   else
   let inter_head =  fst (List.hd spec_inter) in
   let (spec1, spec2) = find_spec obj_name meth_name !verified_method in 
-  let pre = retriveContentfromNode (retriveheap (remove_ok_err (fst spec1))) "this" in 
+  let pre = retriveContentfromNode (remove_ok_err (fst spec1)) "this" in 
   if (String.compare inter_head (fst (List.hd (snd pre))) == 0) then spec1 else 
-  let pre_d = retriveContentfromNode (retriveheap (remove_ok_err (fst spec2))) "this" in
+  let pre_d = retriveContentfromNode (remove_ok_err (fst spec2)) "this" in
   let new_node_p= type_restriction (snd pre_d) inter_head in 
   let new_pre = update_node_content (fst spec2) "this" new_node_p in
-  let post_d = retriveContentfromNode (retriveheap (remove_ok_err (snd spec2))) "this" in
+  let post_d = retriveContentfromNode  (remove_ok_err (snd spec2)) "this" in
   let new_node_q= type_restriction (snd post_d) inter_head in 
   let new_post = update_node_content (snd spec2) "this" new_node_q in
   (new_pre,new_post)
   
 let select_spec state node meth = 
-  let content = retriveContentfromNode (retriveheap state) (find_var node) in
+  let content = retriveContentfromNode state (find_var node) in
   if fst content == false then retrieve_spec (find_var node) (find_var node) [] else 
   let obj = fst (List.hd (List.rev (snd content))) in
   retrieve_spec obj meth (snd content)
@@ -593,10 +627,10 @@ match current with
          | Var a -> a.exp_var_name
          | This _-> "this"  
          | _ -> raise (Foo ("Not a var")) in
-         let null_read = null_test current' var in
+         let null_read = null_test current' var in 
          if null_read == true then let _ = print_string "NPE detected: null read \n" in (Err current') else
          (let field = List.hd exp_member_fields in 
-         let (r1,r2) = (retriveContentfromNode (retriveheap current') var) in
+         let (r1,r2) = (retriveContentfromNode current' var) in
          if r1 == true then let value = retrive_content_from_list r2 field in
          let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), value, loc)) in
              (Ok (update_pure current' form loc))
@@ -632,7 +666,7 @@ match current with
 
       | Instance { exp_instance_var; exp_intance_type=t ;_ }-> (match current' with 
           | Iast.F.Base {formula_base_heap; _ } -> ( match exp_instance_var with
-             | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
+             | Var { exp_var_name = v2;_ } -> let (r1,r2) = retriveContentfromNode current' v2 in
               if r1 == true then let res = up_down_cast r2 t in 
                  if (List.length (fst res) > 0) then let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), IConst (1, loc), loc)) in
                     update_node_content (Ok (update_pure current' form loc)) v2 (fst res)
@@ -647,7 +681,7 @@ match current with
         | Cast { exp_cast_target_type ; exp_cast_body ; _ }-> 
           (match exp_cast_body with
           | Var { exp_var_name = v2 ;_ } -> (match current' with 
-            | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode formula_base_heap v2 in
+            | Iast.F.Base {formula_base_heap; _ } -> let (r1,r2) = retriveContentfromNode current' v2 in
                if r1 == true then let res = up_down_cast r2 exp_cast_target_type in
                    if (List.length (snd res) > 0) then let _ = print_string "cast_error_detected \n" in (Err (remove_ok_err (update_node_content (Ok current') v2 (snd res))))
                    else let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Var ((v2 , Unprimed), loc), loc)) in
@@ -658,9 +692,10 @@ match current with
 
         | CallRecv a -> let res = oop_verification_method_aux obj decl (CallRecv a) (Ok current') in
           let pu = replace_var (retrivepure (remove_ok_err res)) "res" id in 
+          let he = replace_var_from_heap (retriveheap (remove_ok_err res)) "res" (id,Unprimed) in 
           (match res with 
           | Err b -> Err b 
-          | Ok b -> Ok (Iformula.Base {formula_base_heap = (retriveheap b);formula_base_pure = pu; formula_base_pos = retrivepo b}))
+          | Ok b -> Ok (Iformula.Base {formula_base_heap = he;formula_base_pure = pu; formula_base_pos = retrivepo b}))
         
         | New a -> let res = oop_verification_method_aux obj decl (CallRecv {exp_call_recv_receiver = Var {exp_var_name = a.exp_new_class_name;exp_var_pos = a.exp_new_pos};exp_call_recv_arguments = a.exp_new_arguments;exp_call_recv_pos=a.exp_new_pos;exp_call_recv_method=a.exp_new_class_name}) (Ok current') in
                 let pu = replace_var_from_heap (retriveheap (remove_ok_err res)) "new_this" (id,Unprimed) in 
@@ -693,20 +728,20 @@ match current with
              if null_write == true then let _ = print_string "NPE detected: null write \n" in (Err current')
              else (match a with 
              | Var {exp_var_name = v3; exp_var_pos = po } -> let (r1,r2) = retriveContentfromPure (retrivepure current') v3 in
-               if r1 == true then let res = update_heap (retriveheap current') v2 (List.hd f) r2 in
+               if r1 == true then let res = update_heap current' v2 (List.hd f) r2 in
                   let result = (Iformula.Base {formula_base_heap = res;
                   formula_base_pure = retrivepure current';
                   formula_base_pos= po }) in (Ok result)
-               else let (r1,r2) = retriveContentfromNode (retriveheap current') v3 in
+               else let (r1,r2) = retriveContentfromNode current' v3 in
                  if r1 == true then 
                   let value = Ipure.Var ((v3, Unprimed), po) in 
-                  let res = update_heap (retriveheap current') v2 (List.hd f) value in
+                  let res = update_heap current' v2 (List.hd f) value in
                   (Ok (Iformula.Base {formula_base_heap = res;
                   formula_base_pure = retrivepure current';
                   formula_base_pos= po }))
                  else raise (Foo ("Var not found"))
              | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
-             let res = update_heap (retriveheap current') v2 (List.hd f) value in
+             let res = update_heap current' v2 (List.hd f) value in
              (Ok (Iformula.Base {formula_base_heap = res;
              formula_base_pure = retrivepure current';
              formula_base_pos= po }))
@@ -718,20 +753,20 @@ match current with
           else *)
               (match a with 
                |Var {exp_var_name = v2; exp_var_pos = po } -> let (r1,r2) = retriveContentfromPure (retrivepure current') v2 in
-                 if r1 == true then let res = update_heap (retriveheap current') "this" (List.hd f) r2 in
+                 if r1 == true then let res = update_heap current' "this" (List.hd f) r2 in
                     (Ok (Iformula.Base {formula_base_heap = res;
                     formula_base_pure = retrivepure current';
                     formula_base_pos= po }))
-                 else let (r1,r2) = retriveContentfromNode (retriveheap current') v2 in
+                 else let (r1,r2) = retriveContentfromNode current' v2 in
                    if r1 == true then 
                     let value = Ipure.Var ((v2, Unprimed), po) in 
-                    let res = update_heap (retriveheap current') "this" (List.hd f) value in
+                    let res = update_heap current' "this" (List.hd f) value in
                     (Ok (Iformula.Base {formula_base_heap = res;
                     formula_base_pure = retrivepure current';
                     formula_base_pos= po }))
                    else raise (Foo ("Var not found"))
                | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
-               let res = update_heap (retriveheap current') "this" (List.hd f) value in
+               let res = update_heap current' "this" (List.hd f) value in
                (Ok (Iformula.Base {formula_base_heap = res;
                formula_base_pure = retrivepure current';
                formula_base_pos= po }))
@@ -813,10 +848,11 @@ match current with
                 
                 )
     | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in 
-      let obj_name =fst (List.hd (snd (retriveContentfromNode (retriveheap current') (find_var a.exp_call_recv_receiver)))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
+      let obj_list = (retriveContentfromNode current' (find_var a.exp_call_recv_receiver)) in
+      let obj_name =(if (List.length (snd obj_list) ==0) then (find_var a.exp_call_recv_receiver) else fst (List.hd (snd obj_list))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
       let uni_pre_pure = unification_pure a meth_dec in 
       let spec_selection = select_spec current' a.exp_call_recv_receiver a.exp_call_recv_method in
-      let uni_pre_heap = unification_heap (retriveheap current') (retriveheap (remove_ok_err (fst spec_selection))) uni_pre_pure in
+      let uni_pre_heap = unification_heap current' (remove_ok_err (fst spec_selection)) uni_pre_pure in
       let uni = Ipure.And (uni_pre_pure ,uni_pre_heap,a.exp_call_recv_pos) in
       let form = Ipure.And (retrivepure current' ,uni,a.exp_call_recv_pos) in
       let pre_pure = Ipure.And ( (Ipure.And (retrivepure (remove_ok_err (fst spec_selection)) ,uni,a.exp_call_recv_pos)), retrivepure current', a.exp_call_recv_pos) in
@@ -887,14 +923,14 @@ match current with
                                  formula_base_pos = po})
   
 let subsumption_check_single_method s1 s2 d1 d2 = 
-  let this_type = (fst (List.hd (snd (retriveContentfromNode (retriveheap (remove_ok_err s1)) "this" )))) in
-  let normal_dynamic = update_node_content d1 "this" (type_restriction (snd (retriveContentfromNode (retriveheap (remove_ok_err d1)) "this")) this_type) in
+  let this_type = (fst (List.hd (snd (retriveContentfromNode  (remove_ok_err s1) "this" )))) in
+  let normal_dynamic = update_node_content d1 "this" (type_restriction (snd (retriveContentfromNode (remove_ok_err d1) "this")) this_type) in
   let () = entail_checking "pre_check.slk" (singlised_heap s1) (singlised_heap normal_dynamic) in
   let content = Asksleek.asksleek "pre_check.slk" in
   let res = Asksleek.entail_res content in
   let () = if (res == true) then print_string "precondition entailment valid \n" else print_string "precondition entailment fail\n" in
-  let this_type1 = (fst (List.hd (snd (retriveContentfromNode (retriveheap (remove_ok_err s2)) "this" )))) in
-  let normal_dynamic2 = update_node_content d2 "this" (type_restriction (snd (retriveContentfromNode (retriveheap (remove_ok_err d2)) "this")) this_type1) in
+  let this_type1 = (fst (List.hd (snd (retriveContentfromNode  (remove_ok_err s2) "this" )))) in
+  let normal_dynamic2 = update_node_content d2 "this" (type_restriction (snd (retriveContentfromNode  (remove_ok_err d2) "this")) this_type1) in
   entail_checking "post_check.slk" (singlised_heap normal_dynamic2) (singlised_heap s2);
   let content1 = Asksleek.asksleek "post_check.slk" in
   let res1 = Asksleek.entail_res content1 in
@@ -927,12 +963,12 @@ let entail_for_dynamic s1 s2 d1 d2 self parent_class proc_name =
         | [] -> true
         | x::xs -> if (String.compare x s) == 0 then false else not_in s xs in 
   let (pd1,pd2) = retrive_parent_dynamic_spec parent_class proc_name in
-  let node = snd (retriveContentfromNode (retriveheap (remove_ok_err pd1)) "this") in
+  let node = snd (retriveContentfromNode (remove_ok_err pd1) "this") in
   let type_info = List.fold_right (fun (a,b) acc -> a :: acc) node [] in
-  let node1 = snd (retriveContentfromNode (retriveheap (remove_ok_err d1)) "this") in
+  let node1 = snd (retriveContentfromNode (remove_ok_err d1) "this") in
   let new_node = List.fold_right (fun (a,b) acc -> if (not_in a type_info) then acc else (a,b) :: acc) node1 [] in
   let new_d1 = update_node_content d1 "this" new_node in 
-  let node2 = snd (retriveContentfromNode (retriveheap (remove_ok_err d2)) "this") in
+  let node2 = snd (retriveContentfromNode  (remove_ok_err d2) "this") in
   let new_node2 = List.fold_right (fun (a,b) acc -> if (not_in a type_info) then acc else (a,b) :: acc) node2 [] in
   let new_d2 = update_node_content d1 "this" new_node2 in 
   let res =subsumption_check_dynamic_method (singlised_heap pd1) (singlised_heap pd2) (singlised_heap new_d1) (singlised_heap new_d2) in

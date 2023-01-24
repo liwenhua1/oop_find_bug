@@ -21,20 +21,43 @@ class Cnt {
 
 	virtual void test2()
 		static
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:1, val1:w> ;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:1, val1:w> ;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:1, val1:w> ;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w>   achieves this::Cnt<val:v, val1:w> * x::Cnt<val:1, val1:w> ;
 	{    
 
 		 x.val = 1;
 		
 	}
 
+	virtual void test3()
+		static
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w> & z = x  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w> & z = x;
+		dynamic
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w> & z = x  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w> & z = x;
+	{    
+
+		 int temp = z.val ;
+		
+	}
+
+	virtual void test3()
+		static
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w> & z = x  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:1, val1:w> & z = x;
+		dynamic
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v1, val1:w> & z = x  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:1, val1:w> & z = x;
+	{    
+
+		 z.val = 1 ;
+		
+	}
+
+
 	virtual void instanceof1()
 		static
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:v, val1:w> & res=0;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res=0;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:v, val1:w> & res=0;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res=0;
 	{
 		int y = x instanceof FastCnt;
 		return y;
@@ -42,9 +65,9 @@ class Cnt {
 	}
 	virtual void instanceof2()
 		static
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:v, val1:w> & res=1;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res=1;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:v, val1:w> & res=1;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res=1;
 	{
 		int y = x instanceof Cnt;
 		return y;
@@ -52,19 +75,19 @@ class Cnt {
 	}
     virtual void instanceof3()
 		static
-			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves x::FastCnt<val:v, val1:w, bak:n> & res = 1;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>FastCnt<bak:n> & z = x  achieves this::Cnt<val:v, val1:w> * x::FastCnt<val:v, val1:w, bak:n> & z = x & res = 1;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves x::FastCnt<val:v, val1:w, bak:n> & res = 1;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>FastCnt<bak:n> & z = x achieves this::Cnt<val:v, val1:w> * x::FastCnt<val:v, val1:w, bak:n> & z = x & res = 1;
 	{
-		int y = x instanceof FastCnt;
+		int y = z instanceof FastCnt;
 		return y;
 		
 	}
 	 virtual void instanceof4()
 		static
-			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves x::Cnt<val:v, val1:w> & res = 1;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res = 1;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves x::Cnt<val:v, val1:w> & res = 1;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>FastCnt<bak:n>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res = 1;
 	{
 		int y = x instanceof Cnt;
 		
@@ -72,9 +95,9 @@ class Cnt {
 
 	virtual void normal_cast()
 		static
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:v, val1:w> & res = x;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res = x;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>  achieves x::Cnt<val:v, val1:w> & res = x;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res = x;
 	{
 		Cnt y = (Cnt) x;
 		return y;
@@ -82,9 +105,9 @@ class Cnt {
 
 	virtual void cast_error1()
 		static
-			presumes x::Cnt<val:v, val1:w>  achieves err x::Cnt<val:v, val1:w> ;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves err this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> ;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>  achieves err x::Cnt<val:v, val1:w> ;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves err this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> ;
 	{
 		FastCnt y = (FastCnt) x;
 		return y;
@@ -92,9 +115,9 @@ class Cnt {
 	}
 	virtual void cast_error2()
 		static
-			presumes x::Cnt<val:v, val1:w>FastCnt<bak:z>  achieves err x::Cnt<val:v, val1:w>;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>FastCnt<bak:z>  achieves err this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>;
 		dynamic
-			presumes x::Cnt<val:v, val1:w>FastCnt<bak:z>  achieves err x::Cnt<val:v, val1:w>;
+			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>FastCnt<bak:z>  achieves err this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>;
 	{
 		FastCnt y = (FastCnt) x;
 		return y;
@@ -102,9 +125,9 @@ class Cnt {
 
 	virtual void load_error()
 		static
-			presumes this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = null  achieves err this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = null;
+			presumes this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = z & z = d & d = null  achieves err this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = z & z = d & d = null;
 		dynamic
-			presumes this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = null  achieves err this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = null;
+			presumes this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = z & z = d & d = null  achieves err this::Cnt<val:v, val1:w>FastCnt<bak:n> & x = z & z = d & d = null;
 	{
 		int y = x.val;
 		return y;

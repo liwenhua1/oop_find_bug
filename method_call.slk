@@ -1,3 +1,4 @@
+data Super {int val; }.
 
-checkentail (exists r, temp1, temp: (((a = e) & (b = r)) & (((this = FastCnt) & ((a = temp) & ((b = temp1) & (true)))) & ((true) & ((true) & ((true) & (true)))))) & (((true) & (temp = 1)) & (temp1 = 2))) |- (exists r, temp1, temp: (((true) & (temp = 1)) & (temp1 = 2)) & (((this = FastCnt) & ((a = temp) & ((b = temp1) & (true)))) & ((true) & ((true) & ((true) & (true)))))).
+checkentail (exists temp: this::Super<v> & ((true) & (((this = this) & (true)) & (((v = b+1) & (true)) & (true)))) & (true)) |- (exists temp: this::Super<b+1> & (true) & (((this = this) & (true)) & (((v = b+1) & (true)) & (true)))).
 print residue.

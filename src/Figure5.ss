@@ -39,12 +39,20 @@ class FastCnt extends Cnt {
 	}
 
 	virtual void test()
-		static presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v, bak:w> * r::FastCnt<val:1, bak:2>  ;
-		dynamic presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v, bak:w> * r::FastCnt<val:1, bak:2>  ;
+		static presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v, bak:w> * res::FastCnt<val:1, bak:2> ;
+		dynamic presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v, bak:w> * res::FastCnt<val:1, bak:2> ;
 	{
 		int temp = 1;
 		int temp1 = 2;
-		FastCnt r = new FastCnt(temp,temp1);
-		
+		FastCnt rx = new FastCnt(temp,temp1);
+		return rx;
+	}
+
+	virtual void test1()
+		static presumes this::FastCnt<val:v1, bak:w1>   achieves this::FastCnt<val:v1, bak:w1> * res::FastCnt<val:1, bak:2> ;
+		dynamic presumes this::FastCnt<val:v1, bak:w1>   achieves this::FastCnt<val:v1, bak:w1> * res::FastCnt<val:1, bak:2> ;
+	{
+		FastCnt rx1 = this.test();
+		return rx1;
 	}
 }
