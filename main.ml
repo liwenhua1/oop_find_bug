@@ -504,9 +504,30 @@ let find_meth_dec obj_name mth_name =
   | x::xs -> if String.compare x.proc_name name == 0 then x else helper2 xs name in
   helper2 obj.data_methods mth_name
 
+let retrieve_spec obj_name meth_name spec_inter = 
+  let rec helper o m l= 
+    match l with
+    | [] -> (raise (Foo ("method not verified ")))
+    | (a,b,c,d)::xs -> if (String.compare a o == 0) && (String.compare b m==0) then (c , d) else helper o m xs in
+  let inter_head =  fst (List.hd spec_inter) in
+  let (spec1, spec2) = helper obj_name meth_name !verified_method in 
+  let pre = retriveContentfromNode (retriveheap (remove_ok_err (fst spec1))) "this" in 
+  if (String.compare inter_head (fst (List.hd (snd pre))) == 0) then spec1 else 
+  let pre_d = retriveContentfromNode (retriveheap (remove_ok_err (fst spec2))) "this" in
+  let new_node_p= type_restriction (snd pre_d) inter_head in 
+  let new_pre = update_node_content (fst spec2) "this" new_node_p in
+  let post_d = retriveContentfromNode (retriveheap (remove_ok_err (snd spec2))) "this" in
+  let new_node_q= type_restriction (snd post_d) inter_head in 
+  let new_post = update_node_content (snd spec2) "this" new_node_q in
+  (new_pre,new_post)
+  
+let select_spec state node meth = 
+  let content = retriveContentfromNode (retriveheap state) (find_var node) in
+  if fst content == false then (raise (Foo ("Var not in spec  "))) else 
+  let obj = fst (List.hd (List.rev (snd content))) in
+  retrieve_spec obj meth (snd content)
 
 let rec oop_verification_method_aux obj decl expr (current:specs) : specs = 
-
 match current with 
 | Err a -> Err a
 | Ok current' -> 
@@ -742,21 +763,20 @@ match current with
     | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in 
       let obj_name =fst (List.hd (snd (retriveContentfromNode (retriveheap current') (find_var a.exp_call_recv_receiver)))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
       let uni_pre_pure = unification_pure a meth_dec in 
-      let (_,_,c,d) = List.hd !verified_method in 
-      let spec_selection = fst d in
-      let uni_pre_heap = unification_heap (retriveheap current') (retriveheap (remove_ok_err spec_selection)) uni_pre_pure in
+      let spec_selection = select_spec current' a.exp_call_recv_receiver a.exp_call_recv_method in
+      let uni_pre_heap = unification_heap (retriveheap current') (retriveheap (remove_ok_err (fst spec_selection))) uni_pre_pure in
       let uni = Ipure.And (uni_pre_pure ,uni_pre_heap,a.exp_call_recv_pos) in
       let form = Ipure.And (retrivepure current' ,uni,a.exp_call_recv_pos) in
-      let pre_pure = Ipure.And ( (Ipure.And (retrivepure (remove_ok_err spec_selection) ,uni,a.exp_call_recv_pos)), retrivepure current', a.exp_call_recv_pos) in
-      let pre_condition = Ok (Iformula.Base {formula_base_heap = retriveheap (remove_ok_err spec_selection);formula_base_pure = pre_pure;formula_base_pos = a.exp_call_recv_pos}) in
+      let pre_pure = Ipure.And ( (Ipure.And (retrivepure (remove_ok_err (fst spec_selection)) ,uni,a.exp_call_recv_pos)), retrivepure current', a.exp_call_recv_pos) in
+      let pre_condition = Ok (Iformula.Base {formula_base_heap = retriveheap (remove_ok_err (fst spec_selection));formula_base_pure = pre_pure;formula_base_pos = a.exp_call_recv_pos}) in
       let current_state = Iformula.Base {formula_base_heap = snd res;formula_base_pure = form;formula_base_pos = a.exp_call_recv_pos} in
       entail_checking_method_call "method_call.slk" pre_condition (Ok current_state); 
       let content_slk = Asksleek.asksleek "method_call.slk" in
       let res1 = Asksleek.entail_res content_slk in
-      let post_condition = refine (remove_ok_err (snd d)) uni in
+      let post_condition = refine (remove_ok_err (snd spec_selection)) uni in
       let post_state = Iformula.Base {formula_base_heap = Iformula.Star {h_formula_star_h1 = fst res;h_formula_star_h2 =retriveheap post_condition;h_formula_star_pos = retrivepo current'}; 
                                     formula_base_pure = Ipure.And (retrivepure current',retrivepure post_condition,retrivepo current');formula_base_pos = retrivepo current'} in
-      if res1 == true then match (snd d) with
+      if res1 == true then match (snd spec_selection) with
         |Ok a -> Ok post_state
         |Err a -> Err post_state
       (* let post_state = refine post_condition uni_pre_heap unification_pure in  *)
