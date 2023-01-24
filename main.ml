@@ -15,6 +15,12 @@ exception Foo of string
 (******************************************)
 (* main function                          *)
 (******************************************)
+let class_field = ref ([]:(string * (string list)) list)
+
+let rec find_field alist name = 
+  match alist with 
+  | [] -> []
+  | x::xs -> if (String.compare (fst x) name == 0) then (snd x) else find_field xs name 
 let program = ref (None:prog_decl option)
 let verified_method = ref ([]: (ident*ident*(Iast.specs*Iast.specs)*(Iast.specs*Iast.specs)) list)
 let temp_var = ref ([]: string list)
@@ -619,9 +625,11 @@ match current with
             |_ -> raise (Foo ("Other heap formula: cast")))
           | _ ->  raise (Foo (" not a var_exp for casting ")))
 
-          | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
+        | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
           let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), value , loc)) in
           Ok (update_pure current' form loc)
+
+        
           
       
       | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
@@ -776,6 +784,7 @@ match current with
       let post_condition = refine (remove_ok_err (snd spec_selection)) uni in
       let post_state = Iformula.Base {formula_base_heap = Iformula.Star {h_formula_star_h1 = fst res;h_formula_star_h2 =retriveheap post_condition;h_formula_star_pos = retrivepo current'}; 
                                     formula_base_pure = Ipure.And (retrivepure current',retrivepure post_condition,retrivepo current');formula_base_pos = retrivepo current'} in
+                                    print_string (string_of_formula post_state);
       if res1 == true then match (snd spec_selection) with
         |Ok a -> Ok post_state
         |Err a -> Err post_state
@@ -919,22 +928,71 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
 		)
 
 	;;
+let init_field obj p=
+    let rec helper alist po=
+      match alist with 
+      |[] -> []
+      |x::xs -> (x, Ipure.Null po) :: helper xs po in 
+    let records = find_field !class_field obj in 
+    helper records p
+
+     
+let oop_verification_constructor (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
+    let () = print_string ("\n\n========== Constructor: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
+    let node = Iformula.Heapdynamic {h_formula_heap_node = ("this",Unprimed);h_formula_heap_content = [(obj.data_name, (init_field obj.data_name decl.proc_loc))];h_formula_heap_pos = decl.proc_loc} in  
+    match decl.proc_body with 
+    | None -> raise (Foo "oop_verification_method not yet")
+    | Some exp -> 
+      let initalState1 = (fst(List.hd (decl.proc_static_specs))) in 
+      let initheap = Iformula.mkStar (retriveheap (remove_ok_err initalState1)) node decl.proc_loc in
+      let initalState = Ok (Iformula.Base {formula_base_heap = initheap;formula_base_pure = (retrivepure (remove_ok_err initalState1));formula_base_pos = decl.proc_loc}) in  
+      let startTimeStamp = Unix.time() in
+      let final = oop_verification_method_aux obj decl exp initalState in
+      let string_of_final =if (List.length !temp_var == 0) then string_of_spec final else spec_with_ex final in
+      let static_pre = (fst (List.hd decl.proc_static_specs)) in
+      let static_post = (snd (List.hd decl.proc_static_specs)) in
+      entail_checking "postconditon_check.slk" (singlised_heap static_post) (singlised_heap final);
+      let content = Asksleek.asksleek "postconditon_check.slk" in
+      let res = Asksleek.entail_res content in
+      temp_var := [];
+      if (res == true) then (print_string "postcondition satisfied \n"; (verified_method := (obj.data_name,decl.proc_name,List.hd decl.proc_static_specs,List.hd decl.proc_static_specs):: !verified_method)) else print_string "cannot prove postcondition \n";
+      let startTimeStamp01 = Unix.time() in 
+      ( 
+      "[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 
+      "[Static  Post] " ^ string_of_spec  static_post^"\n"^  
+      "[Post  state ] " ^ string_of_final ^"\n"^
+      "[Running Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
+      )
+  
+    ;;
 
   
 let oop_verification_object (decl: Iast.data_decl) = 
 	let rec helper li = 
 		match li with 
 		| [] -> ""
-		| meth :: restMeth -> 
-			let msg = oop_verification_method decl meth in 
-			print_string msg ; helper restMeth
-	in helper decl.data_methods;  
+		| meth :: restMeth -> if meth.proc_constructor == false then
+			                       let msg = oop_verification_method decl meth in 
+			                       print_string msg ; helper restMeth 
+                          else let msg = oop_verification_constructor decl meth in 
+                             print_string msg ; helper restMeth
+  in helper decl.data_methods;  
 ;;
 
+let update_class_field (class_dec:data_decl) = 
+  let obj = class_dec.data_name in 
+  let fields_from_parent = find_field (!class_field) class_dec.data_parent_name in 
+  let rec obj_fields alist = 
+    match alist with 
+    |[] -> []
+    |x::xs -> (snd (fst x)) :: obj_fields xs in 
+  let current_field = obj_fields class_dec.data_fields in 
+  let res = (obj , fields_from_parent @ current_field) in 
+  class_field := !class_field @ [res]
 
 let oop_verification (decl:Iast.prog_decl) = 
 	print_string ("Verifying... \n");
-	 List.map (fun a -> oop_verification_object a) decl.prog_data_decls 
+	 List.map (fun a -> update_class_field a;oop_verification_object a) decl.prog_data_decls 
 
 ;;
 	

@@ -21,14 +21,14 @@ SAT Count   : 2
 SAT % Hit   : 0.%
 IMPLY Count : 7
 IMPLY % Hit : 14.28%
-Time(cache overhead) : 0.002449 (seconds)
+Time(cache overhead) : 0.002464 (seconds)
 
 0 false contexts at: ()
 
-!!! log(small):(0.014724,13)
+!!! log(small):(0.012831,13)
 !!! 
  log(bigger)(>4s)(1):(5.,[(simplify:10<2:Z3,5.)])
-Total verification time: 0.063913 second(s)
-	Time spent in main process: 0.042591 second(s)
-	Time spent in child processes: 0.021322 second(s)
+Total verification time: 0.066928 second(s)
+	Time spent in main process: 0.04379 second(s)
+	Time spent in child processes: 0.023138 second(s)
 

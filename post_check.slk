@@ -1,4 +1,4 @@
 data Super {int val; }.
 
-checkentail this::Super<v> * o::Super<v+4> & true |- this::Super<v> * o::Super<v+4> & true.
+checkentail this::Super<v> * o::Super<v+3> & true |- this::Super<v> * o::Super<v+3> & true.
 print residue.

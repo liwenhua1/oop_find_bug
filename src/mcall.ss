@@ -16,9 +16,9 @@ class Super {
 
     virtual void test (int a, int b) 
 	static
-		presumes this::Super<val:v> * o::Super<val:v+1> achieves this::Super<val:v> * o::Super<val:v+4> ;
+		presumes this::Super<val:v> * o::Super<val:v+1> achieves this::Super<val:v> * o::Super<val:v+3> ;
 	dynamic
-		presumes this::Super<val:v> * o::Super<val:v+1>  achieves this::Super<val:v> * o::Super<val:v+4> ;
+		presumes this::Super<val:v> * o::Super<val:v+1>  achieves this::Super<val:v> * o::Super<val:v+3> ;
 	{   
         int temp1 = 1;
         int temp2 = 2;

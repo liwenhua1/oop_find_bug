@@ -1,4 +1,4 @@
 data Super {int val; }.
 
-checkentail this::Super<v> * o::Super<v+4> & true |- (exists temp2, temp1: this::Super<v> * emp * o::Super<((v+1)+e)+r> & (((true) & (temp1 = 1)) & (temp2 = 2)) & ((temp1 = e) & (temp2 = r))).
+checkentail this::Super<v> * o::Super<v+3> & true |- (exists temp2, temp1: this::Super<v> * emp * o::Super<((v+1)+e)+r> & (((true) & (temp1 = 1)) & (temp2 = 2)) & ((temp1 = e) & (temp2 = r))).
 print residue.

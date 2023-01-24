@@ -16,6 +16,15 @@ class Cnt {
 
 class FastCnt extends Cnt {
 	int bak;
+
+    FastCnt(int a, int b)
+		static presumes a = e & b = r achieves this::FastCnt<val:e, bak:r> & a = e & b = r ;
+		{
+			this.val = a;
+			this.bak = b;
+		}
+    
+
 	override void tick()
 		static presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v+1, bak:w+2> ;
 		dynamic presumes this::Cnt<val:v>FastCnt<bak:w>  achieves this::Cnt<val:v+1>FastCnt<bak:w+2> ; 
