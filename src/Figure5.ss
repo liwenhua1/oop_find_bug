@@ -18,10 +18,10 @@ class FastCnt extends Cnt {
 	int bak;
 
     FastCnt(int a, int b)
-		static presumes a = e & b = r achieves this::FastCnt<val:e, bak:r> & a = e & b = r ;
+		static presumes a = e & b = r achieves new_this::FastCnt<val:e, bak:r> & a = e & b = r ;
 		{
-			this.val = a;
-			this.bak = b;
+			new_this.val = a;
+			new_this.bak = b;
 		}
     
 
@@ -36,5 +36,15 @@ class FastCnt extends Cnt {
 		int temp2 = this.bak;
 		int temp3 = temp2 + 2;
 		this.bak = temp3;
+	}
+
+	virtual void test()
+		static presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v, bak:w> * r::FastCnt<val:1, bak:2>  ;
+		dynamic presumes this::FastCnt<val:v, bak:w>   achieves this::FastCnt<val:v, bak:w> * r::FastCnt<val:1, bak:2>  ;
+	{
+		int temp = 1;
+		int temp1 = 2;
+		FastCnt r = new FastCnt(temp,temp1);
+		
 	}
 }

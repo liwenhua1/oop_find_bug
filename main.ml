@@ -216,7 +216,8 @@ let write_sleek_file_method_call name spec1 spec2=
         else let (r1,r2) = retriveContentfromNode h_formula_star_h2 name in
              if r1 == true then (true, r2)
              else (false, r2)
-     | _ -> raise (Foo "retriveValueFromCurrent")
+     | HTrue -> (false, [])
+     | _ -> raise (Foo "Other F")
     ;;
 
 let rec retriveContentfromPure (spec:formula) name =
@@ -277,7 +278,8 @@ let rec update_heap (spec:Iast.F.h_formula) var f value =
         else spec
      | Star {h_formula_star_h1 = h1; h_formula_star_h2 = h2; h_formula_star_pos=po} -> 
        Iast.F.Star {h_formula_star_h1 = update_heap h1 var f value; h_formula_star_h2 = update_heap h2 var f value; h_formula_star_pos=po}
-     | _ -> raise (Foo "retriveValueFromCurrent")
+     | HTrue -> HTrue
+     | _ -> raise (Foo "otherF")
     ;;
 let update_node_content spec node_name content=
   let rec replace heap n c = 
@@ -463,10 +465,21 @@ let rec search_replace (var: ident * P.exp) formu =
     | Iformula.Star a -> Iformula.Star {h_formula_star_h1= helper1 a.h_formula_star_h1 p;h_formula_star_h2 = helper1 a.h_formula_star_h2 p;h_formula_star_pos = a.h_formula_star_pos}
     | _ -> raise (Foo "other heapF") in
   let finished_heap = helper1 (retriveheap state) formula in
+  let rec check_head_1 v f =
+    match f with 
+    | Ipure.BForm (BConst (true,a)) -> (false, Ipure.BForm (BConst (true,a)))
+    | Ipure.And (a,b,c) -> let (r1,r2) = (check_head_1 v a) in if r1 == true then (true, r2) else (check_head_1 v b)
+    | Ipure.BForm Eq (Var a, b,c) -> if String.compare (fst (fst a)) v == 0 then (true, Ipure.BForm (Eq (Var a, b,c))) else (false, Ipure.BForm (Eq (Var a, b,c))) 
+    |_ -> raise (Foo "other pureF2") in
   let rec check_replace_pure pu fo =
     let rec h3 exp f = 
       match exp with
-      | Ipure.Var a -> let res = check_head (fst (fst a)) f in Ipure.Var ((res,Unprimed), snd a)
+      | Ipure.Var a -> let res = check_head_1 (fst (fst a)) f in if fst res == true then 
+                           match snd res with 
+                          | Ipure.BForm Eq (a,b,c) -> b 
+                          | _ -> raise (Foo "impossible")      
+                       else
+                         let () = if (String.compare (fst (fst a)) "res" == -1) then (temp_var := (fst (fst a)) :: !temp_var) in Ipure.Var a
       | Ipure.Add (a,b,c) -> Ipure.Add ((h3 a f),(h3 b f),c)
       | Ipure.Subtract (a,b,c) -> Ipure.Subtract ((h3 a f),(h3 b f),c)
       | Ipure.IConst a -> Ipure.IConst a
@@ -496,6 +509,21 @@ let entail_checking_method_call name sp1 sp2 = match sp1 with
                     | Err b -> write_sleek_file_method_call name a b
                     | Ok b -> print_string "entailment failed")
 
+let rec replace_var pure name1 name2=
+   match pure with
+    | Ipure.BForm (Eq (Var ((v1,pr),p1), b, p2))  -> if (String.compare v1 name1 == 0) then Ipure.BForm (Eq (Var ((name2,pr),p1), b, p2))  else Ipure.BForm (Eq (Var ((v1,pr),p1), b, p2))
+    | Ipure.And (a,b,c) -> Ipure.And (replace_var a name1 name2,replace_var b name1 name2,c)
+    | Ipure.Or (a,b,c) -> Ipure.Or (replace_var a name1 name2,replace_var b name1 name2,c)
+    | Ipure.BForm a -> Ipure.BForm a
+    | _ ->  raise (Foo ( "other Pure formula "))
+
+let rec replace_var_from_heap heap oid nid = 
+  match heap with 
+  | Iformula.HTrue -> Iformula.HTrue
+  | Iformula.Heapdynamic a -> if String.compare (fst a.h_formula_heap_node) oid == 0 then Iformula.Heapdynamic {h_formula_heap_node = nid;h_formula_heap_content =a.h_formula_heap_content;h_formula_heap_pos=a.h_formula_heap_pos} else Iformula.Heapdynamic a
+  | Iformula.Star a -> Iformula.Star {h_formula_star_h1= replace_var_from_heap a.h_formula_star_h1 oid nid;h_formula_star_h2 = replace_var_from_heap a.h_formula_star_h2 oid nid;h_formula_star_pos = a.h_formula_star_pos}
+  | _ -> raise (Foo "other heapF") 
+
 let find_meth_dec obj_name mth_name = 
   let p = match !program with
   |None -> (raise (Foo ("Impossible")))
@@ -510,13 +538,16 @@ let find_meth_dec obj_name mth_name =
   | x::xs -> if String.compare x.proc_name name == 0 then x else helper2 xs name in
   helper2 obj.data_methods mth_name
 
-let retrieve_spec obj_name meth_name spec_inter = 
-  let rec helper o m l= 
+let rec find_spec o m l= 
     match l with
     | [] -> (raise (Foo ("method not verified ")))
-    | (a,b,c,d)::xs -> if (String.compare a o == 0) && (String.compare b m==0) then (c , d) else helper o m xs in
+    | (a,b,c,d)::xs -> if (String.compare a o == 0) && (String.compare b m==0) then (c , d) else find_spec o m xs 
+let retrieve_spec obj_name meth_name spec_inter = 
+  if List.length spec_inter == 0 then 
+     fst (find_spec obj_name meth_name !verified_method) 
+  else
   let inter_head =  fst (List.hd spec_inter) in
-  let (spec1, spec2) = helper obj_name meth_name !verified_method in 
+  let (spec1, spec2) = find_spec obj_name meth_name !verified_method in 
   let pre = retriveContentfromNode (retriveheap (remove_ok_err (fst spec1))) "this" in 
   if (String.compare inter_head (fst (List.hd (snd pre))) == 0) then spec1 else 
   let pre_d = retriveContentfromNode (retriveheap (remove_ok_err (fst spec2))) "this" in
@@ -529,7 +560,7 @@ let retrieve_spec obj_name meth_name spec_inter =
   
 let select_spec state node meth = 
   let content = retriveContentfromNode (retriveheap state) (find_var node) in
-  if fst content == false then (raise (Foo ("Var not in spec  "))) else 
+  if fst content == false then retrieve_spec (find_var node) (find_var node) [] else 
   let obj = fst (List.hd (List.rev (snd content))) in
   retrieve_spec obj meth (snd content)
 
@@ -611,7 +642,7 @@ match current with
           | _ -> raise (Foo ("not a var_exp for instanceof "))
               )
                
-        |_ -> raise (Foo ("Other heap formula: instanceof ")))
+          |_ -> raise (Foo ("Other heap formula: instanceof ")))
        
         | Cast { exp_cast_target_type ; exp_cast_body ; _ }-> 
           (match exp_cast_body with
@@ -625,6 +656,18 @@ match current with
             |_ -> raise (Foo ("Other heap formula: cast")))
           | _ ->  raise (Foo (" not a var_exp for casting ")))
 
+        | CallRecv a -> let res = oop_verification_method_aux obj decl (CallRecv a) (Ok current') in
+          let pu = replace_var (retrivepure (remove_ok_err res)) "res" id in 
+          (match res with 
+          | Err b -> Err b 
+          | Ok b -> Ok (Iformula.Base {formula_base_heap = (retriveheap b);formula_base_pure = pu; formula_base_pos = retrivepo b}))
+        
+        | New a -> let res = oop_verification_method_aux obj decl (CallRecv {exp_call_recv_receiver = Var {exp_var_name = a.exp_new_class_name;exp_var_pos = a.exp_new_pos};exp_call_recv_arguments = a.exp_new_arguments;exp_call_recv_pos=a.exp_new_pos;exp_call_recv_method=a.exp_new_class_name}) (Ok current') in
+                let pu = replace_var_from_heap (retriveheap (remove_ok_err res)) "new_this" (id,Unprimed) in 
+                (match res with 
+                Err b -> Err b 
+               | Ok b -> Ok (Iformula.Base {formula_base_heap = pu;formula_base_pure = retrivepure b; formula_base_pos = retrivepo b}))
+
         | IntLit { exp_int_lit_val = i; exp_int_lit_pos = po  } -> let value = Ipure.IConst (i, po) in 
           let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), value , loc)) in
           Ok (update_pure current' form loc)
@@ -634,7 +677,7 @@ match current with
       
       | _ -> raise (Foo ("VarDecl-expRHS: " ^ kind_of_Exp expRHS))
       )
-    
+     
     )
   
   
@@ -667,6 +710,7 @@ match current with
              (Ok (Iformula.Base {formula_base_heap = res;
              formula_base_pure = retrivepure current';
              formula_base_pos= po }))
+             
              |_ -> raise (Foo ("Exp not support 1")))
         | This _ -> 
           (* let null_write = null_test current' "this" in
@@ -784,7 +828,7 @@ match current with
       let post_condition = refine (remove_ok_err (snd spec_selection)) uni in
       let post_state = Iformula.Base {formula_base_heap = Iformula.Star {h_formula_star_h1 = fst res;h_formula_star_h2 =retriveheap post_condition;h_formula_star_pos = retrivepo current'}; 
                                     formula_base_pure = Ipure.And (retrivepure current',retrivepure post_condition,retrivepo current');formula_base_pos = retrivepo current'} in
-                                    print_string (string_of_formula post_state);
+                                    (* print_string (string_of_formula post_state); *)
       if res1 == true then match (snd spec_selection) with
         |Ok a -> Ok post_state
         |Err a -> Err post_state
@@ -939,7 +983,7 @@ let init_field obj p=
      
 let oop_verification_constructor (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
     let () = print_string ("\n\n========== Constructor: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
-    let node = Iformula.Heapdynamic {h_formula_heap_node = ("this",Unprimed);h_formula_heap_content = [(obj.data_name, (init_field obj.data_name decl.proc_loc))];h_formula_heap_pos = decl.proc_loc} in  
+    let node = Iformula.Heapdynamic {h_formula_heap_node = ("new_this",Unprimed);h_formula_heap_content = [(obj.data_name, (init_field obj.data_name decl.proc_loc))];h_formula_heap_pos = decl.proc_loc} in  
     match decl.proc_body with 
     | None -> raise (Foo "oop_verification_method not yet")
     | Some exp -> 

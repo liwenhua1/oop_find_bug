@@ -1,4 +1,4 @@
-data Super {int val; }.
+data FastCnt {int val; int bak; }.
 
-checkentail this::Super<v> * o::Super<v+3> & true |- (exists temp2, temp1: this::Super<v> * emp * o::Super<((v+1)+e)+r> & (((true) & (temp1 = 1)) & (temp2 = 2)) & ((temp1 = e) & (temp2 = r))).
+checkentail r::FastCnt<e, r> & (((true) & (temp = 1)) & (temp1 = 2)) & ((temp = e) & (temp1 = r))) |- .
 print residue.

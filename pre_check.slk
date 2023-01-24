@@ -1,4 +1,4 @@
-data Super {int val; }.
+data FastCnt {int val; int bak; }.
 
-checkentail this::Super<v> * o::Super<v+1> & true |- this::Super<v> * o::Super<v+1> & true.
+checkentail this::FastCnt<v, w> & true |- this::FastCnt<v, w> & true.
 print residue.
