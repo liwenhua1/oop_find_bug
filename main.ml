@@ -22,7 +22,16 @@ let rec find_field alist name =
   | [] -> []
   | x::xs -> if (String.compare (fst x) name == 0) then (snd x) else find_field xs name 
 let program = ref (None:prog_decl option)
-let verified_method = ref ([]: (ident*ident*(Iast.specs*Iast.specs)*(Iast.specs*Iast.specs)) list)
+let verified_method = ref ([]: (ident*ident*((Iast.specs*Iast.specs) list)*((Iast.specs*Iast.specs) list)) list)
+
+let rec find_spec o m l= 
+    match l with
+    | [] -> ([],[])
+    | (a,b,c,d)::xs -> if (String.compare a o == 0) && (String.compare b m==0) then (c , d) else find_spec o m xs 
+let add_method obj mth spec t = 
+  let (r1,r2) = find_spec obj mth !verified_method in 
+  if List.length r1 == 0 then if t == true then verified_method := (obj, mth, [spec],[]) :: !verified_method else verified_method := (obj, mth, [],[spec]) :: !verified_method 
+  else verified_method := List.map (fun (a,b,c,d) -> if (String.compare a obj == 0) && (String.compare b mth == 0) then if t == true then (a,b, spec :: c ,d) else (a,b, c, spec::d) else (a,b,c,d)) !verified_method
 let temp_var = ref ([]: string list)
 let spec_with_ex_no_ok_err s= 
   let rec helper slist = match slist with
@@ -38,9 +47,9 @@ let spec_with_ex spec =
 let print_verified_method = 
   let helper list =
     match list with
-    | [] -> print_string ""
+    | [] -> print_string "end"
     | x :: xs -> let (a,b,c,d) = x in 
-                   print_string (a^" "^" "^b^" "^ string_of_spec (fst c) ^string_of_spec (snd c)^ string_of_spec (fst d) ^string_of_spec (snd d)^"\n") in
+                   print_string (a^" "^" "^b^" "^ (List.fold_left (fun acc z -> acc ^ string_of_spec (fst z) ^ " " ^ string_of_spec (snd z) ^ " ") "" c) ^ (List.fold_left (fun acc z -> acc ^ string_of_spec (fst z) ^ " " ^ string_of_spec (snd z) ^ " ") "" d)^"\n") in
     helper !verified_method;;
 let parse_file_full file_name : Iast.prog_decl = 
   let org_in_chnl = open_in file_name in
@@ -148,6 +157,7 @@ let take_data h =
   let s = (List.hd h) in
   (fst s, write_field (snd s)) 
 let rec get_data heap = 
+ 
   match heap with
   |Iformula.Heapdynamic a -> [(take_data a.h_formula_heap_content)]
   |Iformula.Star a -> (get_data a.h_formula_star_h1) @ (get_data a.h_formula_star_h2)
@@ -158,17 +168,25 @@ let rec notinside e alist =
   | [] -> true
   | x::xs -> if (String.compare (fst e) (fst x) == 0) then false else notinside e xs
 
-let merge d1 d2 = let x = d1 @ d2 in
+let merge d1 d2 = 
+  let x = d1 @ d2 in
   let res = List.fold_right (fun a acc -> if (notinside a acc) then a::acc else acc) x [] in
   res
 let find_data heap1 heap2 = 
+  (* print_string (string_of_h_formula heap1);
+  print_string ("\n");
+  print_string (string_of_h_formula heap1); *)
   let data_1 = get_data heap1 in
+  
   let data_2 = get_data heap2 in
+  
   merge data_1 data_2
 
 
 let type_restriction spec t = 
+  
   let (r1,r2) = List.fold_right (fun (a,b) (x,y) -> if x == false then (if (String.compare a t == 0) then (true, y @ b) else (false, y @ b)) else (x,y)) (List.rev spec) (false, []) in
+
   let rec process s r = match s with
                       |x::xs -> if (String.compare (fst x) t == 0) then ((fst x, r) :: xs) else process xs r 
                       |[] -> raise (Foo "not matched") in
@@ -184,8 +202,10 @@ let data_message s1 s2= let r1 = retriveheap s1 in
    string_of_da res
  
 let write_sleek_file name spec1 spec2= 
+ 
   let file = name in
   let header = data_message spec1 spec2 in 
+  
   let content = header ^"\n"^"checkentail "^string_of_formula spec1 ^" |- "^ (if (List.length !temp_var == 0) then string_of_formula spec2 else spec_with_ex_no_ok_err spec2) ^"."^ "\n" ^ "print residue." in
   let oc = open_out file in
   (* create or truncate file, return channel *)
@@ -261,7 +281,7 @@ let up_down_cast s t=
       match spec with
       | [] -> []
       | x::[] -> if Iast.sub_type (Named (fst x)) type_to_ckeck then [x] else []
-      | x::y::xs -> if Iast.sub_type (Named (fst x)) type_to_ckeck then x::xs else let spec = type_restriction (x::y::xs) (fst y) in 
+      | x::y::xs -> if Iast.sub_type (Named (fst x)) type_to_ckeck then x::xs else let spec =  (type_restriction (x::y::xs) (fst y)) in 
           helper spec type_to_ckeck in
   let res2 = helper s t in (res2,res)
        
@@ -418,6 +438,7 @@ let find_residue spec1 method_call =
       |Iformula.Heapdynamic a -> if not_in (fst (a.h_formula_heap_node)) arg_list then (Iformula.Heapdynamic a, Iformula.HTrue) else (Iformula.HTrue, Iformula.Heapdynamic a)
       |Star a -> (Iformula.Star {h_formula_star_h1= fst (helper a.h_formula_star_h1);h_formula_star_h2=(fst (helper a.h_formula_star_h2));h_formula_star_pos=a.h_formula_star_pos},
       Iformula.Star {h_formula_star_h1= snd (helper a.h_formula_star_h1);h_formula_star_h2 = snd (helper a.h_formula_star_h2);h_formula_star_pos=a.h_formula_star_pos})
+      |HTrue -> (HTrue,HTrue)
       | _ -> raise (Foo "other Heap F") in
       helper spec1
 let unification_pure (mth_call:exp_call_recv) (mth_dec:proc_decl) = 
@@ -507,16 +528,18 @@ let rec search_replace (var: ident * P.exp) formu =
     |_ -> raise (Foo "other pureF2") in
   let rec check_replace_pure pu fo =
     let rec h3 exp f = 
+   
       match exp with
       | Ipure.Var a -> let res = check_head_1 (fst (fst a)) f in if fst res == true then 
                            match snd res with 
                           | Ipure.BForm Eq (a,b,c) -> b 
                           | _ -> raise (Foo "impossible")      
                        else
-                         let () = if (String.compare (fst (fst a)) "res" == -1) then (temp_var := (fst (fst a)) :: !temp_var) in Ipure.Var a
+                         let () = if (not (String.compare (fst (fst a)) "res" == 0)) then (temp_var := (fst (fst a)) :: !temp_var) in Ipure.Var a
       | Ipure.Add (a,b,c) -> Ipure.Add ((h3 a f),(h3 b f),c)
       | Ipure.Subtract (a,b,c) -> Ipure.Subtract ((h3 a f),(h3 b f),c)
       | Ipure.IConst a -> Ipure.IConst a
+      | Ipure.Null a -> Ipure.Null a
       | _ -> raise (Foo "not support") in
     match pu with
     | Ipure.BForm BConst (true,a) -> Ipure.BForm (BConst (true,a))
@@ -527,21 +550,24 @@ let rec search_replace (var: ident * P.exp) formu =
   Iformula.Base {formula_base_heap =finished_heap; formula_base_pure = finished_pure; formula_base_pos = retrivepo state}
 
 
-let entail_checking name sp1 sp2 = match sp1 with
+let entail_checking name sp1 sp2 = 
+  
+  match sp1 with
+
   |Ok a -> (match sp2 with 
            | Ok b -> write_sleek_file name a b
-           | Err b -> print_string "entailment failed")
+           | Err b -> print_string "entailment failed \n")
   |Err a -> (match sp2 with 
            | Err b -> write_sleek_file name a b
-           | Ok b -> print_string "entailment failed") 
+           | Ok b -> print_string "entailment failed \n") 
 
 let entail_checking_method_call name sp1 sp2 = match sp1 with
            |Ok a -> (match sp2 with 
                     | Ok b -> write_sleek_file_method_call name a b
-                    | Err b -> print_string "entailment failed")
+                    | Err b -> print_string "entailment failed \n")
            |Err a -> (match sp2 with 
                     | Err b -> write_sleek_file_method_call name a b
-                    | Ok b -> print_string "entailment failed")
+                    | Ok b -> print_string "entailment failed \n")
 
 let rec replace_var pure name1 name2=
    match pure with
@@ -572,25 +598,25 @@ let find_meth_dec obj_name mth_name =
   | x::xs -> if String.compare x.proc_name name == 0 then x else helper2 xs name in
   helper2 obj.data_methods mth_name
 
-let rec find_spec o m l= 
-    match l with
-    | [] -> (raise (Foo ("method not verified ")))
-    | (a,b,c,d)::xs -> if (String.compare a o == 0) && (String.compare b m==0) then (c , d) else find_spec o m xs 
+
 let retrieve_spec obj_name meth_name spec_inter = 
-  if List.length spec_inter == 0 then 
-     fst (find_spec obj_name meth_name !verified_method) 
-  else
+  if String.compare obj_name meth_name == 0 then (fst (find_spec obj_name meth_name !verified_method)) else
   let inter_head =  fst (List.hd spec_inter) in
   let (spec1, spec2) = find_spec obj_name meth_name !verified_method in 
-  let pre = retriveContentfromNode (remove_ok_err (fst spec1)) "this" in 
+  let pre = retriveContentfromNode (remove_ok_err (fst (List.hd (spec1)))) "this" in 
   if (String.compare inter_head (fst (List.hd (snd pre))) == 0) then spec1 else 
-  let pre_d = retriveContentfromNode (remove_ok_err (fst spec2)) "this" in
-  let new_node_p= type_restriction (snd pre_d) inter_head in 
-  let new_pre = update_node_content (fst spec2) "this" new_node_p in
-  let post_d = retriveContentfromNode  (remove_ok_err (snd spec2)) "this" in
-  let new_node_q= type_restriction (snd post_d) inter_head in 
-  let new_post = update_node_content (snd spec2) "this" new_node_q in
-  (new_pre,new_post)
+
+    let rec helper sp= match sp with 
+     | [] -> []
+     | x::xs -> let pre_d = retriveContentfromNode (remove_ok_err (fst x)) "this" in
+                if Iast.sub_type (Named (fst (List.hd (snd pre_d)))) (Named inter_head) then x :: helper xs else
+                let new_node_p = type_restriction (snd pre_d) inter_head in 
+                let new_pre = update_node_content (fst x) "this" new_node_p in
+                let post_d = retriveContentfromNode  (remove_ok_err (snd x)) "this" in
+                let new_node_q= type_restriction (snd post_d) inter_head in 
+                let new_post = update_node_content (snd x) "this" new_node_q in
+                (new_pre,new_post) :: helper xs in 
+  helper spec2
   
 let select_spec state node meth = 
   let content = retriveContentfromNode state (find_var node) in
@@ -616,7 +642,9 @@ match current with
   (* Read *)
   | VarDecl {exp_var_decl_type; exp_var_decl_decls; _} -> 
     let (id, expO, loc) = List.hd exp_var_decl_decls in 
-    temp_var := id::!temp_var;
+    let () = match exp_var_decl_type with
+    | Named a -> ()
+    | _ ->  temp_var := id::!temp_var in
     (match expO with 
     | None -> let form = Ipure.BForm (Eq (Var ((id , Unprimed), loc), Null loc, loc)) in
           (Ok (update_pure current' form loc))
@@ -847,12 +875,17 @@ match current with
                    | _ -> raise (Foo ("Only return var"))
                 
                 )
-    | CallRecv a -> let h = retriveheap current' in let res = find_residue h a in 
+    | CallRecv a ->
+      let null_res = null_test current' (find_var a.exp_call_recv_receiver) in 
+      if null_res == true then (print_string "NPE detected: null read \n" ; (Err current')) else
+      let h = retriveheap current' in let res = find_residue h a in 
       let obj_list = (retriveContentfromNode current' (find_var a.exp_call_recv_receiver)) in
       let obj_name =(if (List.length (snd obj_list) ==0) then (find_var a.exp_call_recv_receiver) else fst (List.hd (snd obj_list))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
       let uni_pre_pure = unification_pure a meth_dec in 
-      let spec_selection = select_spec current' a.exp_call_recv_receiver a.exp_call_recv_method in
-      let uni_pre_heap = unification_heap current' (remove_ok_err (fst spec_selection)) uni_pre_pure in
+      let spec_selection1 = select_spec current' a.exp_call_recv_receiver a.exp_call_recv_method in
+       let rec helper sp_li = (match sp_li with 
+                              | [] -> raise (Foo "cannot find a spec")
+                              | spec_selection :: ss -> let uni_pre_heap = unification_heap current' (remove_ok_err (fst spec_selection)) uni_pre_pure in
       let uni = Ipure.And (uni_pre_pure ,uni_pre_heap,a.exp_call_recv_pos) in
       let form = Ipure.And (retrivepure current' ,uni,a.exp_call_recv_pos) in
       let pre_pure = Ipure.And ( (Ipure.And (retrivepure (remove_ok_err (fst spec_selection)) ,uni,a.exp_call_recv_pos)), retrivepure current', a.exp_call_recv_pos) in
@@ -861,15 +894,17 @@ match current with
       entail_checking_method_call "method_call.slk" pre_condition (Ok current_state); 
       let content_slk = Asksleek.asksleek "method_call.slk" in
       let res1 = Asksleek.entail_res content_slk in
-      let post_condition = refine (remove_ok_err (snd spec_selection)) uni in
+      if res1 == true then let post_condition = refine (remove_ok_err (snd spec_selection)) uni in
       let post_state = Iformula.Base {formula_base_heap = Iformula.Star {h_formula_star_h1 = fst res;h_formula_star_h2 =retriveheap post_condition;h_formula_star_pos = retrivepo current'}; 
                                     formula_base_pure = Ipure.And (retrivepure current',retrivepure post_condition,retrivepo current');formula_base_pos = retrivepo current'} in
                                     (* print_string (string_of_formula post_state); *)
-      if res1 == true then match (snd spec_selection) with
+        (match (snd spec_selection) with
         |Ok a -> Ok post_state
-        |Err a -> Err post_state
+        |Err a -> Err post_state)
       (* let post_state = refine post_condition uni_pre_heap unification_pure in  *)
-      else raise (Foo ("COuld not call method" ^ a.exp_call_recv_method))
+      else helper ss) in 
+      helper spec_selection1
+  | Empty _ -> current
   | _ -> print_string (kind_of_Exp expr ^ " "); current 
   )
 
@@ -926,43 +961,47 @@ let subsumption_check_single_method s1 s2 d1 d2 =
   let this_type = (fst (List.hd (snd (retriveContentfromNode  (remove_ok_err s1) "this" )))) in
   let normal_dynamic = update_node_content d1 "this" (type_restriction (snd (retriveContentfromNode (remove_ok_err d1) "this")) this_type) in
   let () = entail_checking "pre_check.slk" (singlised_heap s1) (singlised_heap normal_dynamic) in
+
   let content = Asksleek.asksleek "pre_check.slk" in
   let res = Asksleek.entail_res content in
-  let () = if (res == true) then print_string "precondition entailment valid \n" else print_string "precondition entailment fail\n" in
+  let () = if (res == true) then print_string "" else print_string "precondition entailment fail\n" in
   let this_type1 = (fst (List.hd (snd (retriveContentfromNode  (remove_ok_err s2) "this" )))) in
   let normal_dynamic2 = update_node_content d2 "this" (type_restriction (snd (retriveContentfromNode  (remove_ok_err d2) "this")) this_type1) in
   entail_checking "post_check.slk" (singlised_heap normal_dynamic2) (singlised_heap s2);
   let content1 = Asksleek.asksleek "post_check.slk" in
   let res1 = Asksleek.entail_res content1 in
-  let () = if (res1 == true) then print_string "postcondition entailment valid\n" else print_string "postcondition entailment fail\n" in
+  let () = if (res1 == true) then print_string "" else print_string "postcondition entailment fail\n" in
   res && res1
 ;;
 
 let subsumption_check_dynamic_method s1 s2 d1 d2 = 
+  
   let () = entail_checking "pre_dynamic_check.slk" s1 d1 in
+  
   let content = Asksleek.asksleek "pre_dynamic_check.slk" in
   let res = Asksleek.entail_res content in
-  let () = if (res == true) then print_string "dynamic precondition entailment valid \n" else print_string "dynamic precondition entailment fail\n" in
+  let () = if (res == true) then print_string "" else print_string "dynamic precondition entailment fail\n" in
+  
   entail_checking "post_dynamic_check.slk" d2 s2;
   let content1 = Asksleek.asksleek "post_dynamic_check.slk" in
   let res1 = Asksleek.entail_res content1 in
-  let () = if (res1 == true) then print_string "dynamic postcondition entailment valid\n" else print_string "dynamic postcondition entailment fail\n" in
+  let () = if (res1 == true) then print_string "" else print_string "dynamic postcondition entailment fail\n" in
   (res && res1)
 ;;
 
-let retrive_parent_dynamic_spec pclas proc = 
+(* let retrive_parent_dynamic_spec pclas proc = 
   let rec helper list = match list with
   | [] -> raise (Foo ("method in parent class is not verified"))
   | (a,b,c,d)::xs -> if ((String.compare a pclas == 0) && (String.compare b proc == 0)) then d else helper xs in
-   helper !verified_method;;
+   helper !verified_method;; *)
   
 
 
-let entail_for_dynamic s1 s2 d1 d2 self parent_class proc_name = 
+let entail_for_dynamic d1 d2 parent_spec = 
   let rec not_in s slist = match slist with
         | [] -> true
         | x::xs -> if (String.compare x s) == 0 then false else not_in s xs in 
-  let (pd1,pd2) = retrive_parent_dynamic_spec parent_class proc_name in
+  let (pd1,pd2) = parent_spec in
   let node = snd (retriveContentfromNode (remove_ok_err pd1) "this") in
   let type_info = List.fold_right (fun (a,b) acc -> a :: acc) node [] in
   let node1 = snd (retriveContentfromNode (remove_ok_err d1) "this") in
@@ -970,40 +1009,74 @@ let entail_for_dynamic s1 s2 d1 d2 self parent_class proc_name =
   let new_d1 = update_node_content d1 "this" new_node in 
   let node2 = snd (retriveContentfromNode  (remove_ok_err d2) "this") in
   let new_node2 = List.fold_right (fun (a,b) acc -> if (not_in a type_info) then acc else (a,b) :: acc) node2 [] in
-  let new_d2 = update_node_content d1 "this" new_node2 in 
+  let new_d2 = update_node_content d2 "this" new_node2 in 
+  
   let res =subsumption_check_dynamic_method (singlised_heap pd1) (singlised_heap pd2) (singlised_heap new_d1) (singlised_heap new_d2) in
-  if (res == true) then (verified_method := (self,proc_name,(s1,s2),(d1,d2)):: !verified_method) ;;
+  
+  if (res == true) then true else false
  
+let rec check_static_entail dynamic static_list= 
+    
+    match static_list with
+    | [] -> (false,false)
+    | (sp,sq)::xs -> let t1 =fst (List.hd ( snd (retriveContentfromNode (remove_ok_err sp) "this"))) in 
+                     
+                     let t2 =fst (List.hd ( snd (retriveContentfromNode (remove_ok_err (fst dynamic)) "this"))) in 
+                     let t3 =fst (List.hd (List.rev ( snd (retriveContentfromNode (remove_ok_err (fst dynamic)) "this")))) in 
+                     
+                     if String.compare t1 t2 == 0 then (true,true) else if (not (String.compare t3 t1 == 0)) then (false,true) else 
+                     let entail_for_static = subsumption_check_single_method sp sq (fst dynamic) (snd dynamic) in if entail_for_static == true then (false,true) else check_static_entail dynamic xs
 
+let verified_static static_spec o d expression = 
+  let initalState = (fst static_spec) in 
+  let final = oop_verification_method_aux o d expression initalState in
+  let string_of_final =if (List.length !temp_var == 0) then string_of_spec final else spec_with_ex final in
+  let static_post = (snd static_spec) in
+  entail_checking "postconditon_check.slk" (singlised_heap static_post) (singlised_heap final);
+  let content = Asksleek.asksleek "postconditon_check.slk" in
+  let res = Asksleek.entail_res content in
+  temp_var := [];
+  print_string ("[Static  Pre ] " ^ string_of_spec initalState^"\n"^ 
+  "[Static  Post] " ^ string_of_spec  static_post^"\n" ^ "[Post  state ] " ^ string_of_final ^"\n");
+  if (res == true) then let () = add_method o.data_name d.proc_name static_spec true; print_string "postcondition satisfied \n" in () else print_string "cannot prove postcondition \n"
+  
+let rec check_dynamic_entail current_spec parent_spec = 
+  match parent_spec with 
+  | [] -> false
+  | x :: xs -> let res = entail_for_dynamic (fst current_spec) (snd current_spec) x in if res == true then true else check_dynamic_entail current_spec xs
 
 let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string = 
   let () = print_string ("\n\n========== Module: "^ decl.proc_name ^ " in Object " ^ obj.data_name ^" ==========\n") in
 	match decl.proc_body with 
 	| None -> raise (Foo "oop_verification_method not yet")
-	| Some exp -> 
-		let initalState = (fst(List.hd (decl.proc_static_specs))) in 
-		let startTimeStamp = Unix.time() in
-		let final = oop_verification_method_aux obj decl exp initalState in
-    let string_of_final =if (List.length !temp_var == 0) then string_of_spec final else spec_with_ex final in
-    let static_pre = (fst (List.hd decl.proc_static_specs)) in
-    let static_post = (snd (List.hd decl.proc_static_specs)) in
-    entail_checking "postconditon_check.slk" (singlised_heap static_post) (singlised_heap final);
-    let content = Asksleek.asksleek "postconditon_check.slk" in
-    let res = Asksleek.entail_res content in
-    temp_var := [];
-    let dynamic_pre = (fst (List.hd decl.proc_dynamic_specs)) in
-    let dynamic_post = (snd (List.hd decl.proc_dynamic_specs)) in
-    if (res == true) then print_string "postcondition satisfied \n" else print_string "cannot prove postcondition \n";
-    let entail_for_static = subsumption_check_single_method static_pre static_post dynamic_pre dynamic_post in
-    if (String.compare (decl.proc_type) "virtual" == 0) then (if (res == true && entail_for_static == true) then (verified_method := (obj.data_name,decl.proc_name,(static_pre,static_post),(dynamic_pre,dynamic_post)):: !verified_method))
-    else (if (res == true && entail_for_static == true) then entail_for_dynamic static_pre static_post dynamic_pre dynamic_post obj.data_name obj.data_parent_name decl.proc_name);
+	| Some exp -> let startTimeStamp = Unix.time() in
+		let static_list = decl.proc_static_specs in 
+    (* print_int (List.length static_list);
+    print_int (List.length decl.proc_dynamic_specs); *)
+    let rec h li = match li with
+        |[]-> ()
+        |x::xs -> verified_static x obj decl exp; h xs in 
+    h static_list;
+    
+    let dynamic_list = decl.proc_dynamic_specs in 
+    
+    let rec h2 li = match li with 
+            | [] -> ()
+            | x::xs -> let (c,d) = find_spec obj.data_name decl.proc_name !verified_method in 
+                       let re = check_static_entail x c in 
+                       match re with
+                       | (true,true) -> print_string ("[Dynamic Pre ] " ^ string_of_spec (fst x) ^"\n"^ "[Dynamic Post] " ^ string_of_spec (snd x)^"\n"^"dynamic spec verified\n") ; add_method obj.data_name decl.proc_name x false ; h2 xs
+                       | (false,true) -> if (String.compare (decl.proc_type) "virtual" == 0) then (
+                        print_string ("[Dynamic Pre ] " ^ string_of_spec (fst x) ^"\n"^ "[Dynamic Post] " ^ string_of_spec (snd x)^"\n"^"dynamic spec verified\n") ; add_method obj.data_name decl.proc_name x false ; h2 xs) else
+                       let parent_sps = snd (find_spec obj.data_parent_name decl.proc_name !verified_method) in let re2 =check_dynamic_entail x parent_sps in 
+                       if re2 == true then (print_string ("[Dynamic Pre ] " ^ string_of_spec (fst x) ^"\n"^ "[Dynamic Post] " ^ string_of_spec (snd x)^"\n"^"dynamic spec verified\n");add_method obj.data_name decl.proc_name x false ; h2 xs) else h2 xs 
+                       | _ -> print_string "cannot use dynamic spec" in
+    h2 dynamic_list;      
+    
+              (* (if (res == true && entail_for_static == true) then (verified_method := (obj.data_name,decl.proc_name,(static_pre,static_post),(dynamic_pre,dynamic_post)):: !verified_method))
+    else (if (res == true && entail_for_static == true) then entail_for_dynamic static_pre static_post dynamic_pre dynamic_post obj.data_name obj.data_parent_name decl.proc_name); *)
 		let startTimeStamp01 = Unix.time() in 
-		( 
-		"[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 
-		"[Static  Post] " ^ string_of_spec  static_post^"\n"^ 
-    "[Dynamic Pre ] " ^ string_of_spec dynamic_pre ^"\n"^ 
-		"[Dynamic Post] " ^ string_of_spec  dynamic_post^"\n"^ 
-		"[Post  state ] " ^ string_of_final ^"\n"^
+		(
 		"[Running Time] " ^ string_of_float ((startTimeStamp01 -. startTimeStamp) *.1000000.0)^ " us" ^"\n" 
 		)
 
@@ -1035,7 +1108,7 @@ let oop_verification_constructor (obj:Iast.data_decl) (decl: Iast.proc_decl) : s
       let content = Asksleek.asksleek "postconditon_check.slk" in
       let res = Asksleek.entail_res content in
       temp_var := [];
-      if (res == true) then (print_string "postcondition satisfied \n"; (verified_method := (obj.data_name,decl.proc_name,List.hd decl.proc_static_specs,List.hd decl.proc_static_specs):: !verified_method)) else print_string "cannot prove postcondition \n";
+      if (res == true) then (print_string "postcondition satisfied \n"; add_method obj.data_name decl.proc_name (List.hd decl.proc_static_specs) true) else print_string "cannot prove postcondition \n";
       let startTimeStamp01 = Unix.time() in 
       ( 
       "[Static  Pre ] " ^ string_of_spec static_pre^"\n"^ 

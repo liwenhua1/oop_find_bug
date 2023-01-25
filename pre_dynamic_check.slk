@@ -1,4 +1,4 @@
-data Cnt {int val; }.
+data Super {}.
 
-checkentail this::Cnt<v> & true |- this::Cnt<v> & true.
+checkentail this::Super<> & true |- this::Super<> & true.
 print residue.

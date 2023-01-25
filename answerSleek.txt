@@ -3,27 +3,27 @@ ERROR : fixcalc cannot be found!!
 !!! **src/tpdispatcher.ml#492:init_tp by default: 
 !!! **src/tpdispatcher.ml#391:set_tp z3Starting z3... 
 
-!!! **WARNING****src/sleek.ml#494:[/usr/local/bin/prelude.slk,post_check.slk]
+!!! **WARNING****src/sleek.ml#494:[/usr/local/bin/prelude.slk,postconditon_check.slk]
 Entail 1: Valid. 
 
 Residue:
 
- <1>emp&x=null&{FLOW,(20,21)=__norm#E}[]
-[[ SEARCH ==>  Match(this,this)]]
+ <1>emp&{FLOW,(4,5)=__norm#E}[]
+[[ SEARCH ==>  Match(this,this) ==>  SEARCH ==>  Match(other,other)]]
 
 
 
-Stop z3... 5 invocations 
-SAT Count   : 2
+Stop z3... 7 invocations 
+SAT Count   : 1
 SAT % Hit   : 0.%
-IMPLY Count : 5
-IMPLY % Hit : 40.%
-Time(cache overhead) : 0.000507 (seconds)
+IMPLY Count : 7
+IMPLY % Hit : 14.28%
+Time(cache overhead) : 0.000954 (seconds)
 
 0 false contexts at: ()
 
-!!! log(small):(0.007035,9)
-Total verification time: 0.050644 second(s)
-	Time spent in main process: 0.037687 second(s)
-	Time spent in child processes: 0.012957 second(s)
+!!! log(small):(0.01133,11)
+Total verification time: 0.084525 second(s)
+	Time spent in main process: 0.06027 second(s)
+	Time spent in child processes: 0.024255 second(s)
 

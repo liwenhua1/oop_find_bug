@@ -1,4 +1,5 @@
-data Cnt {int val; }.
+data Objec {}.
+data Super {}.
 
-checkentail this::Cnt<v+1> & true |- this::Cnt<v+1> & true.
+checkentail this::Super<> * res::Objec<> & true |- this::Super<> * res::Objec<> & true.
 print residue.

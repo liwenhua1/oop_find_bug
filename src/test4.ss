@@ -99,7 +99,7 @@ class Cnt {
 		dynamic
 			presumes this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w>  achieves this::Cnt<val:v, val1:w> * x::Cnt<val:v, val1:w> & res = x;
 	{
-		Cnt y = (Cnt) x;
+		int y = (Cnt) x;
 		return y;
 	}
 

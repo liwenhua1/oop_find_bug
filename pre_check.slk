@@ -1,4 +1,4 @@
-data FastCnt {int val; int val1; int bak; }.
+data FastCnt {int val; int bak; }.
 
-checkentail this::FastCnt<v, w, n> & x = null |- this::FastCnt<v, w, n> & x = null.
+checkentail this::FastCnt<v, w> & true |- this::FastCnt<v, w> & true.
 print residue.

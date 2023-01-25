@@ -1,8 +1,4 @@
-(*
-  Created 19-Feb-2006
 
-  Input AST
-*)
 
 open Globals
 

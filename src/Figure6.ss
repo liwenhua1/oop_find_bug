@@ -1,12 +1,27 @@
-class Super {
-	virtual OBject foo () 
+class Objec {
+
+	Objec ()
 	static
-		presumes this::Cnt<val:v> achieves this::Cnt<val:v+1> or this::Cnt<val:v+2>;
+		presumes true achieves  new_this::Objec<>;
+	{}
+    
+	virtual void toString()
+	static	
+	      presumes this::Objec<> achieves  this::Objec<>;
+	dynamic	
+	      presumes this::Objec<> achieves  this::Objec<>;
+	{}
+
+} 
+
+class Super {
+	virtual Obj foo () 
+	static
+		presumes this::Super<> achieves this::Super<> * res::Objec<>;
 	dynamic
-		presumes this::Cnt<val:v> achieves err this::Cnt<val:w> & v+1<=w<=v+2;
+		presumes this::Super<> achieves this::Super<> * res::Objec<>;
 	{
-		Object o;
-		o = new Object ();
+		Objec o = new Objec ();
 		return o;
 	}
 }
@@ -14,23 +29,39 @@ class Super {
 
 class Sub extends Super {
 	
-	override Object foo ()
-	static presumes this::FastCnt<val:v, bak:w> achieves this::FastCnt<val:v+2>;
-	dynamic presumes this::Cnt<val:v>FastCnt<bak:w> achieves this::Cnt<val:v+1>FastCnt<bak:w+2>; 
-	{return null;}
+	override Obj foo ()
+	static
+		presumes this::Sub<> achieves this::Sub<> & res = null;
+	dynamic
+	    presumes this::Sub<> achieves this::Sub<> & res = null; 
+	dynamic
+		presumes this::Super<> achieves this::Super<> * res::Objec<>; 	
+	{
+		int temp;
+		return temp;}
 
 	virtual void test (Super a)
-	static presumes this::FastCnt<val:v, bak:w> achieves this::FastCnt<val:v+2>;
-	dynamic presumes this::Cnt<val:v>FastCnt<bak:w> achieves this::Cnt<val:v+1>FastCnt<bak:w+2>; 
+	static 
+		 presumes this::Sub<> * a::Super<> achieves ok this::Sub<> * a::Super<> * m::Objec<>;
+	static 
+		 presumes this::Sub<> * a::Sub<> achieves err this::Sub<> * a::Sub<> & m = null;
+    dynamic 
+		 presumes this::Sub<> * a::Super<> achieves ok this::Sub<> * a::Super<> * m::Objec<>;
+    dynamic 
+		 presumes this::Sub<> * a::Sub<> achieves err this::Sub<> * a::Sub<> & m = null;
+	
 	{
-		m = a.foo();
+		Objec m = a.foo();
 		m.toString();
+		
 	}
 
 	virtual void buggy (Sub b)
-	static presumes this::FastCnt<val:v, bak:w> achieves this::FastCnt<val:v+2>;
-	dynamic presumes this::Cnt<val:v>FastCnt<bak:w> achieves this::Cnt<val:v+1>FastCnt<bak:w+2>; 
+	static 
+	        presumes this::Sub<> * b::Sub<> achieves err this::Sub<> * b::Sub<> ;
+	dynamic 
+	        presumes this::Sub<> * b::Sub<> achieves err this::Sub<> * b::Sub<> ;
 	{
-		test(b);
+		this.test(b);
 	}
 }
