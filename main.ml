@@ -877,7 +877,7 @@ match current with
                 )
     | CallRecv a ->
       let null_res = null_test current' (find_var a.exp_call_recv_receiver) in 
-      if null_res == true then (print_string "NPE detected: null read \n" ; (Err current')) else
+      if null_res == true then (print_string "NPE detected: null method call \n" ; (Err current')) else
       let h = retriveheap current' in let res = find_residue h a in 
       let obj_list = (retriveContentfromNode current' (find_var a.exp_call_recv_receiver)) in
       let obj_name =(if (List.length (snd obj_list) ==0) then (find_var a.exp_call_recv_receiver) else fst (List.hd (snd obj_list))) in let meth_dec = find_meth_dec obj_name a.exp_call_recv_method in
