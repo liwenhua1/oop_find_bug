@@ -1,5 +1,5 @@
-data AbstractHistogram {}.
-data Cnt {int val; }.
+data Integer {}.
+data Test {}.
 
-checkentail this::Cnt<v> * other::AbstractHistogram<> & true |- (exists y: this::Cnt<v> * other::AbstractHistogram<> & ((true) & (y = 1)) & (y = 1)).
+checkentail this::Test<> * a::Integer<> & true |- this::Test<> * a::Integer<> & true.
 print residue.
