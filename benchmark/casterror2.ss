@@ -2,15 +2,24 @@
 class Ctelement{
     virtual Ctelement getparent()
     static 
-        presumes this::Ctelement<> achieves res::Ctelement<>CtExecutable<>;
+        presumes this::Ctelement<> achieves this::Ctelement<>*res::Ctelement<>CtExecutable<>;
     dynamic
-        presumes this::Ctelement<> achieves res::Ctelement<>CtExecutable<>;
+        presumes this::Ctelement<> achieves this::Ctelement<>*res::Ctelement<>CtExecutable<>;
     {
 
     }
 }
 
 class CtVariable extends Ctelement{
+
+    inherit Ctelement getparent()
+    static 
+        presumes this::CtVariable<> achieves this::CtVariable<>*res::Ctelement<>CtExecutable<>;
+    dynamic
+        presumes this::Ctelement<>CtVariable<> achieves this::Ctelement<>CtVariable<>*res::Ctelement<>CtExecutable<>;
+    {
+
+    }
 
 }
 
@@ -19,7 +28,7 @@ class CtParameter extends CtVariable {
     static 
         presumes this::CtParameter<> achieves this::CtParameter<>*res::Ctelement<>CtExecutable<>;
     dynamic
-        presumes this::Ctelement<>CtParameter<> achieves this::Ctelement<>CtParameter<>*res::Ctelement<>CtExecutable<>;
+        presumes this::Ctelement<>CtVariable<>CtParameter<> achieves this::Ctelement<>CtVariable<>CtParameter<>*res::Ctelement<>CtExecutable<>;
     {
 
     }
@@ -33,7 +42,7 @@ class CtMethod extends CtExecutable {
 
 }
 
-class CtConstructor extends CtExecutable{
+class CtExecutable extends Ctelement{
 
 }
 
