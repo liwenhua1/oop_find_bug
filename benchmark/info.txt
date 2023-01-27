@@ -1,1 +1,2 @@
 casterror1 -> https://github.com/molgenis/molgenis/commit/72111329e8e18c37c78a4e8f9de703f2a834a53c proved
+casterror2 -> https://github.com/INRIA/spoon/commit/e60e3ab92d706a87e3475645f312675fc278c9f1#diff-1a0cbe1d91d6c3a934edddcba915ed4262df5181fb35106a7cda744730a8c6b9 proved

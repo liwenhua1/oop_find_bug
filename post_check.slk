@@ -1,4 +1,5 @@
-data FastCnt {int val; int bak; }.
+data CtExecutable {}.
+data CtParameter {}.
 
-checkentail this::FastCnt<v+1, w+2> & true |- this::FastCnt<v+1, w+2> & true.
+checkentail this::CtParameter<> * res::CtExecutable<> & true |- this::CtParameter<> * res::CtExecutable<> & true.
 print residue.

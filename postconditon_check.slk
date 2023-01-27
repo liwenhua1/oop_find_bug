@@ -1,5 +1,6 @@
-data Integer {}.
+data CtExecutable {}.
+data CtParameter {}.
 data Test {}.
 
-checkentail this::Test<> * a::Integer<> & true |- this::Test<> * a::Integer<> & true.
+checkentail this::Test<> * a::CtParameter<> * s::CtExecutable<> & true |- (exists x, y: this::Test<> * emp * a::CtParameter<> * s::CtExecutable<> & (((true) & (y = 1)) & (true)) & (x = 0)).
 print residue.

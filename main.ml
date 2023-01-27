@@ -336,6 +336,7 @@ let rec update_node_content spec node_name content=
     | Iformula.Heapdynamic a -> if (String.compare (fst a.h_formula_heap_node) n == 0) then Iformula.Heapdynamic {h_formula_heap_node = a.h_formula_heap_node ; h_formula_heap_content = c; h_formula_heap_pos = a.h_formula_heap_pos} else Iformula.Heapdynamic a
     | Star {h_formula_star_h1 = h1; h_formula_star_h2 = h2; h_formula_star_pos=po} -> 
       Iast.F.Star {h_formula_star_h1 = replace h1 n c ; h_formula_star_h2 = replace h2 n c; h_formula_star_pos=po}
+    |HTrue -> HTrue
     | _ -> raise (Foo "not210") in
   match spec with 
   |Ok a -> let h = retriveheap a in Ok (Base { formula_base_heap = replace h node_name content;
@@ -718,7 +719,9 @@ match current with
             |_ -> raise (Foo ("Other heap formula: cast")))
           | _ ->  raise (Foo (" not a var_exp for casting ")))
 
-        | CallRecv a -> let res = oop_verification_method_aux obj decl (CallRecv a) (Ok current') in
+        | CallRecv a -> 
+          let res = oop_verification_method_aux obj decl (CallRecv a) (Ok current') in
+          
           let pu = replace_var (retrivepure (remove_ok_err res)) "res" id in 
           let he = replace_var_from_heap (retriveheap (remove_ok_err res)) "res" (id,Unprimed) in 
           (match res with 
@@ -861,11 +864,15 @@ match current with
          else (Err current')
        | _ -> raise (Foo ("Assign-Member-Var: "))
     |_ *)
-    | Cond a -> let sp = (match a.exp_cond_condition with
-              | Var b -> let form = Ipure.BForm (Eq (Var ((b.exp_var_name , Unprimed), b.exp_var_pos), IConst (1, b.exp_var_pos), b.exp_var_pos)) in
-                 Ok (update_pure current' form b.exp_var_pos)
+    | Cond a -> (match a.exp_cond_condition with
+              | Var b -> 
+                let r = retriveContentfromPure (retrivepure current') b.exp_var_name in 
+                ( match r with
+                | (true, IConst (1,_)) -> oop_verification_method_aux obj decl a.exp_cond_then_arm (Ok current')
+                |(true, IConst (0,_)) -> oop_verification_method_aux obj decl a.exp_cond_else_arm (Ok current')
+                |_ -> raise (Foo ("Var match 1 or 0")))
               |_ -> raise (Foo ("Condition needs to be Var"))
-              ) in oop_verification_method_aux obj decl a.exp_cond_then_arm sp 
+    )
     | Return a ->
                 (match a.exp_return_val with
                    |None -> Ok current'

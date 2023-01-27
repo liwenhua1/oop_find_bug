@@ -1,9 +1,28 @@
-class CtVariable {
+
+class Ctelement{
+    virtual Ctelement getparent()
+    static 
+        presumes this::Ctelement<> achieves res::Ctelement<>CtExecutable<>;
+    dynamic
+        presumes this::Ctelement<> achieves res::Ctelement<>CtExecutable<>;
+    {
+
+    }
+}
+
+class CtVariable extends Ctelement{
 
 }
 
 class CtParameter extends CtVariable {
+    inherit Ctelement getparent()
+    static 
+        presumes this::CtParameter<> achieves this::CtParameter<>*res::Ctelement<>CtExecutable<>;
+    dynamic
+        presumes this::Ctelement<>CtParameter<> achieves this::Ctelement<>CtParameter<>*res::Ctelement<>CtExecutable<>;
+    {
 
+    }
 }
 
 class CtLambda extends CtExecutable {
@@ -20,9 +39,19 @@ class CtConstructor extends CtExecutable{
 
 class Test {
 
-    virtual void error (Objec a)
-    static
-        presumes this::Test<> * a::CtVariable<>CtParameter<>C achieves err this::Test<> * a::Objec<>;
+    virtual void casterror(CtVariable a) 
+    static 
+        presumes this::Test<> * a::CtVariable<>CtParameter<> achieves err this::Test<> * a::CtVariable<>CtParameter<> * s::Ctelement<>CtExecutable<>;
+        
     {
-        Str b = (Str) a;
+      int y = a instanceof CtParameter;
+      if (y) {
+            Object s = a.getparent();
+            int x = s instanceof CtLambda;
+            if (x) {} else 
+            {CtMethod z = (CtMethod) s;}
+
+     }
+      
     }
+}

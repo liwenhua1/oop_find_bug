@@ -8,22 +8,22 @@ Entail 1: Valid.
 
 Residue:
 
- <1>emp&{FLOW,(4,5)=__norm#E}[]
-[[ SEARCH ==>  Match(this,this) ==>  SEARCH ==>  Match(a,a)]]
+ <1>emp&{FLOW,(20,21)=__norm#E}[]
+[[ SEARCH ==>  Match(this,this) ==>  SEARCH ==>  Match(a,a) ==>  SEARCH ==>  Match(s,s)]]
 
 
 
-Stop z3... 5 invocations 
+Stop z3... 12 invocations 
 SAT Count   : 1
 SAT % Hit   : 0.%
-IMPLY Count : 5
-IMPLY % Hit : 20.%
-Time(cache overhead) : 0.002073 (seconds)
+IMPLY Count : 14
+IMPLY % Hit : 21.42%
+Time(cache overhead) : 0.002992 (seconds)
 
 0 false contexts at: ()
 
-!!! log(small):(0.008288,9)
-Total verification time: 0.045071 second(s)
-	Time spent in main process: 0.035414 second(s)
-	Time spent in child processes: 0.009657 second(s)
+!!! log(small):(0.017297,19)
+Total verification time: 0.060314 second(s)
+	Time spent in main process: 0.043738 second(s)
+	Time spent in child processes: 0.016576 second(s)
 
