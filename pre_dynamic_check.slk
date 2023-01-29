@@ -1,4 +1,4 @@
-data Super {}.
+data Super {int val; }.
 
-checkentail this::Super<> & true |- this::Super<> & true.
+checkentail this::Super<v> & x = w |- this::Super<v> & x = w.
 print residue.

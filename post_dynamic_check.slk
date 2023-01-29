@@ -1,5 +1,4 @@
-data Objec {}.
-data Super {}.
+data Super {int val; }.
 
-checkentail this::Super<> * res::Objec<> & true |- this::Super<> * res::Objec<> & true.
+checkentail this::Super<w> & (x = w) & (w = 1) |- this::Super<w> & (x = w) & (w > 0).
 print residue.

@@ -1,5 +1,4 @@
-data CtExecutable {}.
-data CtParameter {}.
+data Sub {int val; }.
 
-checkentail this::CtParameter<> * res::CtExecutable<> & true |- this::CtParameter<> * res::CtExecutable<> & true.
+checkentail this::Sub<w> & (x = w) & (w = 1) |- this::Sub<w> & x = w.
 print residue.

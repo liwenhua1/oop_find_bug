@@ -1008,6 +1008,7 @@ let subsumption_check_dynamic_method s1 s2 d1 d2 =
 
 
 let entail_for_dynamic d1 d2 parent_spec = 
+  (* print_string (string_of_spec d1); *)
   let rec not_in s slist = match slist with
         | [] -> true
         | x::xs -> if (String.compare x s) == 0 then false else not_in s xs in 
@@ -1034,7 +1035,10 @@ let rec check_static_entail dynamic static_list=
                      let t2 =fst (List.hd ( snd (retriveContentfromNode (remove_ok_err (fst dynamic)) "this"))) in 
                      let t3 =fst (List.hd (List.rev ( snd (retriveContentfromNode (remove_ok_err (fst dynamic)) "this")))) in 
                      
-                     if String.compare t1 t2 == 0 then (true,true) else if (not (String.compare t3 t1 == 0)) then (false,true) else 
+                     if String.compare t1 t2 == 0 then 
+                      let entail_for_static = subsumption_check_single_method sp sq (fst dynamic) (snd dynamic) in if entail_for_static == true then (true,true) else (false,false)
+                      
+                       else if (not (String.compare t3 t1 == 0)) then (false,true) else 
                      let entail_for_static = subsumption_check_single_method sp sq (fst dynamic) (snd dynamic) in if entail_for_static == true then (false,true) else check_static_entail dynamic xs
 
 let verified_static static_spec o d expression = 
@@ -1051,6 +1055,7 @@ let verified_static static_spec o d expression =
   if (res == true) then let () = add_method o.data_name d.proc_name static_spec true; print_string "postcondition satisfied \n" in () else print_string "cannot prove postcondition \n"
   
 let rec check_dynamic_entail current_spec parent_spec = 
+  (* print_int (List.length parent_spec); *)
   match parent_spec with 
   | [] -> false
   | x :: xs -> let res = entail_for_dynamic (fst current_spec) (snd current_spec) x in if res == true then true else check_dynamic_entail current_spec xs
@@ -1074,11 +1079,13 @@ let oop_verification_method (obj:Iast.data_decl) (decl: Iast.proc_decl) : string
             | [] -> ()
             | x::xs -> let (c,d) = find_spec obj.data_name decl.proc_name !verified_method in 
                        let re = check_static_entail x c in 
+                       (* print_string ((string_of_bool (fst re))^(string_of_bool (snd re))); *)
                        match re with
                        | (true,true) -> print_string ("[Dynamic Pre ] " ^ string_of_spec (fst x) ^"\n"^ "[Dynamic Post] " ^ string_of_spec (snd x)^"\n"^"dynamic spec verified\n") ; add_method obj.data_name decl.proc_name x false ; h2 xs
                        | (false,true) -> if (String.compare (decl.proc_type) "virtual" == 0) then (
                         print_string ("[Dynamic Pre ] " ^ string_of_spec (fst x) ^"\n"^ "[Dynamic Post] " ^ string_of_spec (snd x)^"\n"^"dynamic spec verified\n") ; add_method obj.data_name decl.proc_name x false ; h2 xs) else
                        let parent_sps = snd (find_spec obj.data_parent_name decl.proc_name !verified_method) in let re2 =check_dynamic_entail x parent_sps in 
+                       (* print_string (string_of_bool (re2)); *)
                        if re2 == true then (print_string ("[Dynamic Pre ] " ^ string_of_spec (fst x) ^"\n"^ "[Dynamic Post] " ^ string_of_spec (snd x)^"\n"^"dynamic spec verified\n");add_method obj.data_name decl.proc_name x false ; h2 xs) else h2 xs 
                        | _ -> print_string "cannot use dynamic spec" in
     h2 dynamic_list;      

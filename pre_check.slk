@@ -1,4 +1,4 @@
-data CtParameter {}.
+data Sub {int val; }.
 
-checkentail this::CtParameter<> & true |- this::CtParameter<> & true.
+checkentail this::Sub<v> & x = w |- this::Sub<v> & x = w.
 print residue.

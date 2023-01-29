@@ -1,4 +1,4 @@
-data CtParameter {}.
+data Sub {int val; }.
 
-checkentail (exists y: this::CtParameter<> & ((true) & (((this = a) & (true)) & ((true) & (true)))) & ((true) & (y = 1))) |- (exists y: emp*a::CtParameter<> & ((true) & (y = 1)) & (((this = a) & (true)) & ((true) & (true)))).
+checkentail (exists temp: this::Sub<v> & ((x = w) & (((this = q) & ((x = temp) & (true))) & (((v = v) & (true)) & ((true) & (true))))) & ((true) & (temp = 1))) |- (exists temp: emp*q::Sub<v> & ((true) & (temp = 1)) & (((this = q) & ((x = temp) & (true))) & (((v = v) & (true)) & ((true) & (true))))).
 print residue.
