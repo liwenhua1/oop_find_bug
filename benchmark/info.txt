@@ -1,2 +1,4 @@
 casterror1 -> https://github.com/molgenis/molgenis/commit/72111329e8e18c37c78a4e8f9de703f2a834a53c proved
 casterror2 -> https://github.com/INRIA/spoon/commit/e60e3ab92d706a87e3475645f312675fc278c9f1#diff-1a0cbe1d91d6c3a934edddcba915ed4262df5181fb35106a7cda744730a8c6b9 proved
+npe1 -> https://github.com/traccar/traccar/commit/aa921d5acca68b92f0200183eb1c4a786a5f4882 proved
+npe2 -> https://github.com/1and1/Activiti-internal/blob/3d624a5c783c2ba8a292c6414bf6644ecd8758b0/modules/activiti-engine/src/main/java/org/activiti/engine/impl/event/AbstractEventHandler.java proved

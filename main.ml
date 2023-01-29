@@ -145,6 +145,17 @@ let retriveValueFromCurrent (spec:Iast.F.formula) index: P.exp =
 
   | _ -> raise (Foo "retriveValueFromCurrent")
   ;; *)
+let singlised_heap spec =
+    let heap = retriveheap (remove_ok_err spec) in 
+    let pure = retrivepure (remove_ok_err spec) in 
+    let po = retrivepo (remove_ok_err spec) in 
+    match spec with
+    | Ok a -> Ok (Iformula.Base {formula_base_heap=Iprinter.normalise_formula_base_heap heap;
+                                 formula_base_pure = pure;
+                                 formula_base_pos = po})
+    | Err a -> Err (Iformula.Base {formula_base_heap=Iprinter.normalise_formula_base_heap heap;
+                                 formula_base_pure = pure;
+                                 formula_base_pos = po})
 let write_content s = 
     List.fold_right (fun r1 res -> "int "^r1^";"^" "^res) s ""
 
@@ -490,6 +501,7 @@ let rec search_replace (var: ident * P.exp) formu =
   let rec helper exp1 exp2=
        (match exp1 with
          | Ipure.Var s -> if String.compare (fst (fst (fst exp2))) (fst (fst s)) == 0 then (true, snd exp2) else (false, exp1)
+         | Ipure.Null s -> (false, exp1)
          | Ipure.IConst s -> (false, exp1)
          | Ipure.Add (x,y,z) -> let (r1,r2) = helper x exp2 in if r1 == true then (true, Ipure.Add (r2,y,z)) else let (r3,r4) = helper y exp2 in if r3 == true then (true, Ipure.Add (x,r4,z)) else (false, exp1)
          | Ipure.Subtract (x,y,z) -> let (r1,r2) = helper x exp2 in if r1 == true then (true, Ipure.Subtract (r2,y,z)) else let (r3,r4) = helper y exp2 in if r3 == true then (true, Ipure.Subtract (x,r4,z)) else (false, exp1)
@@ -498,6 +510,7 @@ let rec search_replace (var: ident * P.exp) formu =
   | Ipure.BForm (BConst (true,a)) -> (false, var)
   | Ipure.And (a,b,c) -> let (r1,r2) = (search_replace var a) in if r1 == true then (true, r2) else (search_replace var b)
   | Ipure.BForm Eq (Var a,b,c) -> let content = snd var in let (r1,r2) = helper content (a,b) in if r1 == true then (true, (fst var, r2)) else (false, var)
+  | Ipure.BForm Eq (Null a, Null b,c) -> (false, var)
   |_ -> raise (Foo "other pureF1")
  let refine state formula =  
   let h1 (node: (ident * P.exp) list) form = 
@@ -898,7 +911,7 @@ match current with
       let pre_pure = Ipure.And ( (Ipure.And (retrivepure (remove_ok_err (fst spec_selection)) ,uni,a.exp_call_recv_pos)), retrivepure current', a.exp_call_recv_pos) in
       let pre_condition = Ok (Iformula.Base {formula_base_heap = retriveheap (remove_ok_err (fst spec_selection));formula_base_pure = pre_pure;formula_base_pos = a.exp_call_recv_pos}) in
       let current_state = Iformula.Base {formula_base_heap = snd res;formula_base_pure = form;formula_base_pos = a.exp_call_recv_pos} in
-      entail_checking_method_call "method_call.slk" pre_condition (Ok current_state); 
+      entail_checking_method_call "method_call.slk" (singlised_heap pre_condition) (singlised_heap (Ok current_state)); 
       let content_slk = Asksleek.asksleek "method_call.slk" in
       let res1 = Asksleek.entail_res content_slk in
       if res1 == true then let post_condition = refine (remove_ok_err (snd spec_selection)) uni in
@@ -952,17 +965,7 @@ match current with
 	*)
 
 	;;
-  let singlised_heap spec =
-    let heap = retriveheap (remove_ok_err spec) in 
-    let pure = retrivepure (remove_ok_err spec) in 
-    let po = retrivepo (remove_ok_err spec) in 
-    match spec with
-    | Ok a -> Ok (Iformula.Base {formula_base_heap=Iprinter.normalise_formula_base_heap heap;
-                                 formula_base_pure = pure;
-                                 formula_base_pos = po})
-    | Err a -> Err (Iformula.Base {formula_base_heap=Iprinter.normalise_formula_base_heap heap;
-                                 formula_base_pure = pure;
-                                 formula_base_pos = po})
+
   
 let subsumption_check_single_method s1 s2 d1 d2 = 
   let this_type = (fst (List.hd (snd (retriveContentfromNode  (remove_ok_err s1) "this" )))) in
